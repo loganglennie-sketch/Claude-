@@ -19,7 +19,7 @@ export function WeekNav({ weekStart, basePath }: { weekStart: string; basePath: 
         <div className="text-lg font-semibold">{formatWeekRange(weekStart)}</div>
       </div>
       {canGoNext ? (
-        <Link href={next === thisWeek ? basePath : `${basePath}?week=${next}`} className={arrow} aria-label="Next week">
+        <Link href={`${basePath}?week=${next}`} className={arrow} aria-label="Next week">
           ›
         </Link>
       ) : (

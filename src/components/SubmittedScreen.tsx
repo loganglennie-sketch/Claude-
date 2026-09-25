@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { brand } from "@/config/brand";
+import { useWorker } from "@/lib/demo-auth";
+import { useCompanyName } from "@/lib/demo-company";
+import { downloadFile } from "@/lib/download";
 import { useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
@@ -12,6 +16,9 @@ const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "
 export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
   const hydrated = useHydrated();
   const store = useTimesheets();
+  const worker = useWorker();
+  const companyName = useCompanyName();
+  const [busy, setBusy] = useState(false);
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const sheet = store[resolveWeekParam(weekParam)];
@@ -24,6 +31,19 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
     );
   }
   const totals = weekTotals(sheet.days);
+
+  async function previewPdf() {
+    if (!sheet) return;
+    setBusy(true);
+    try {
+      const { buildTimesheetPdf, pdfFileName } = await import("@/lib/pdf");
+      const name = worker?.name ?? "Worker";
+      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet });
+      downloadFile(bytes as BlobPart, pdfFileName(name, sheet.weekStart), "application/pdf");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-xl flex-1 space-y-5 px-4 pb-10 pt-8 text-center">
@@ -53,8 +73,11 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
       </Card>
 
       <p className="text-sm text-muted">
-        In the live app a signed PDF is emailed to {brand.payrollEmail} at this point.
+        In the live app this signed PDF is emailed to {brand.payrollEmail} automatically.
       </p>
+      <button type="button" onClick={previewPdf} disabled={busy} className="min-h-11 text-sm font-semibold text-brand underline underline-offset-4">
+        {busy ? "Preparing…" : "See the PDF payroll receives"}
+      </button>
 
       <div className="space-y-3">
         <ButtonLink href="/timesheet/history">View past timesheets</ButtonLink>

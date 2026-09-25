@@ -105,6 +105,13 @@ export function submitTimesheet(weekStart: string, signature: string): Timesheet
   return submitted;
 }
 
+export function approveTimesheet(weekStart: string) {
+  const store = read();
+  const sheet = store[weekStart];
+  if (!sheet || sheet.status !== "submitted") return;
+  write({ ...store, [weekStart]: { ...sheet, status: "approved", approvedAt: new Date().toISOString() } });
+}
+
 /** Lets you start again while testing the demo. */
 export function resetDemo() {
   write({});

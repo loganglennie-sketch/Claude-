@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { brand } from "@/config/brand";
-import { DEMO_HINT, signIn, useWorker } from "@/lib/demo-auth";
+import { DEMO_LOGINS, signIn, useWorker } from "@/lib/demo-auth";
 import { useCompanyName } from "@/lib/demo-company";
 import { Button } from "./ui";
 
@@ -18,7 +18,7 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (worker) router.replace("/timesheet");
+    if (worker) router.replace(worker.payroll ? "/payroll" : "/timesheet");
   }, [worker, router]);
 
   function submit(e: React.FormEvent) {
@@ -82,9 +82,14 @@ export function LoginScreen() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">Forgotten your PIN? Ask the office to reset it.</p>
-      <p className="mt-6 rounded-xl bg-brand-soft p-3 text-center text-sm text-brand-dark">
-        Demo: name <strong>{DEMO_HINT.name}</strong>, PIN <strong>{DEMO_HINT.pin}</strong>
-      </p>
+      <div className="mt-6 space-y-1 rounded-xl bg-brand-soft p-3 text-center text-sm text-brand-dark">
+        <div className="font-semibold">Try the demo</div>
+        {DEMO_LOGINS.map((l) => (
+          <div key={l.name}>
+            {l.payroll ? "Office / payroll" : "Worker"}: <strong>{l.name}</strong>, PIN <strong>{l.pin}</strong>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }

@@ -21,4 +21,8 @@ export type Timesheet = {
   submittedAt?: string;
   /** PNG data URL of the worker's signature. */
   signature?: string;
+  /** Demo data only: signature as an SVG path (300×90 box) instead of an image. */
+  signaturePath?: string;
+  /** ISO timestamp. */
+  approvedAt?: string;
 };
