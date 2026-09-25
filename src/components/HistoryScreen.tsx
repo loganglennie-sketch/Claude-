@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut, useWorker } from "@/lib/demo-auth";
 import { resetDemo, useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
@@ -9,6 +10,7 @@ import { StatusBadge } from "./ui";
 export function HistoryScreen() {
   const hydrated = useHydrated();
   const store = useTimesheets();
+  const worker = useWorker();
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const sheets = Object.values(store).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
@@ -39,6 +41,12 @@ export function HistoryScreen() {
           </li>
         ))}
       </ul>
+      <div className="flex items-center justify-between border-t border-line pt-4 text-sm text-muted">
+        <span>Signed in as {worker?.name}</span>
+        <button type="button" onClick={signOut} className="min-h-11 rounded-xl border-2 border-line bg-surface px-4 font-semibold text-brand">
+          Sign out
+        </button>
+      </div>
       {sheets.length > 0 && (
         <button
           type="button"

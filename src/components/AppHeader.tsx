@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { brand } from "@/config/brand";
 
-export function AppHeader({ right }: { right?: React.ReactNode }) {
+export function AppHeader({ right, subtitle = "Timesheets" }: { right?: React.ReactNode; subtitle?: React.ReactNode }) {
   return (
     <header className="sticky top-0 z-20 bg-brand text-white shadow-sm">
       <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
@@ -10,7 +10,7 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
           <img src={brand.logoPath} alt="" width={36} height={36} className="h-9 w-9 rounded-lg bg-white/10" />
           <div className="min-w-0 leading-tight">
             <div className="truncate text-base font-semibold">{brand.companyName}</div>
-            <div className="text-xs text-white/75">Timesheets</div>
+            <div className="truncate text-xs text-white/75">{subtitle}</div>
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2">{right}</div>

@@ -7,7 +7,7 @@
  */
 export const brand = {
   /** Full company name, shown in headers, emails and PDFs. */
-  companyName: "Your Company Ltd",
+  companyName: "Nicole of Skene",
   /** Short name shown under the app icon on a phone's home screen (max ~12 characters). */
   shortName: "Timesheets",
   /** Logo shown in the app header. Put the file in the /public folder. */
