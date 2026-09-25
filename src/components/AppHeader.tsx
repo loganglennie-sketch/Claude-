@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { brand } from "@/config/brand";
+import { CompanyName } from "@/lib/demo-company";
 
 export function AppHeader({ right, subtitle = "Timesheets" }: { right?: React.ReactNode; subtitle?: React.ReactNode }) {
   return (
@@ -9,7 +10,9 @@ export function AppHeader({ right, subtitle = "Timesheets" }: { right?: React.Re
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={brand.logoPath} alt="" width={36} height={36} className="h-9 w-9 rounded-lg bg-white/10" />
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-base font-semibold">{brand.companyName}</div>
+            <div className="truncate text-base font-semibold">
+              <CompanyName />
+            </div>
             <div className="truncate text-xs text-white/75">{subtitle}</div>
           </div>
         </Link>

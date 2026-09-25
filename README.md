@@ -4,6 +4,14 @@ A mobile-first weekly timesheet app for small trades businesses. Workers fill in
 
 **Rebranding:** everything company-specific (name, logo, colours, payroll email, overtime threshold, declaration wording) lives in [`src/config/brand.ts`](src/config/brand.ts). Replace `public/logo.svg` with your own logo.
 
+## Showing the demo to a business
+
+The demo uses the generic name "Your Company". To show a business its own name, send a link like:
+
+`https://<your-app>.vercel.app/?company=Smith%20Joinery`
+
+(`%20` means a space.) The name is remembered on that device. Open `/?company=` to go back to the default.
+
 ## Build stages
 
 | Stage | What you get | Accounts needed |

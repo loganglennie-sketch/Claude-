@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { brand } from "@/config/brand";
+import { CompanyFromLink } from "@/lib/demo-company";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: `${brand.shortName} · ${brand.companyName}`,
-  description: `Weekly timesheets for ${brand.companyName}`,
+  title: brand.shortName,
+  description: "Weekly timesheets, signed on your phone",
 };
 
 export const viewport: Viewport = {
@@ -29,7 +30,10 @@ const brandVars = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" style={brandVars} className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <CompanyFromLink />
+        {children}
+      </body>
     </html>
   );
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { brand } from "@/config/brand";
 import { DEMO_HINT, signIn, useWorker } from "@/lib/demo-auth";
+import { useCompanyName } from "@/lib/demo-company";
 import { Button } from "./ui";
 
 export const PIN_LENGTH = 4;
@@ -11,6 +12,7 @@ export const PIN_LENGTH = 4;
 export function LoginScreen() {
   const router = useRouter();
   const worker = useWorker();
+  const companyName = useCompanyName();
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function LoginScreen() {
       <div className="mb-8 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={brand.logoPath} alt="" width={72} height={72} className="mx-auto h-18 w-18 rounded-2xl" />
-        <h1 className="mt-4 text-2xl font-bold">{brand.companyName}</h1>
+        <h1 className="mt-4 text-2xl font-bold">{companyName}</h1>
         <p className="text-muted">Sign in to fill in your timesheet</p>
       </div>
 
