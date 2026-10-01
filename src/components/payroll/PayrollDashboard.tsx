@@ -103,7 +103,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
     downloadFile(csv, `timesheets-${weekStart}.csv`, "text/csv;charset=utf-8");
   }
 
-  const action = "min-h-11 whitespace-nowrap rounded-xl px-4 text-sm font-semibold disabled:opacity-40";
+  const action = "min-h-11 whitespace-nowrap rounded-xl px-3 text-sm font-semibold disabled:opacity-40";
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 pb-16 pt-6">
