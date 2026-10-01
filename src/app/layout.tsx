@@ -19,6 +19,7 @@ const brandVars = {
   "--brand-primary": brand.colours.primary,
   "--brand-primary-dark": brand.colours.primaryDark,
   "--brand-primary-soft": brand.colours.primarySoft,
+  "--brand-accent": brand.colours.accent,
   "--brand-background": brand.colours.background,
   "--brand-surface": brand.colours.surface,
   "--brand-text": brand.colours.text,

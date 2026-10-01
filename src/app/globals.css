@@ -5,6 +5,7 @@
   --color-brand: var(--brand-primary);
   --color-brand-dark: var(--brand-primary-dark);
   --color-brand-soft: var(--brand-primary-soft);
+  --color-accent: var(--brand-accent);
   --color-page: var(--brand-background);
   --color-surface: var(--brand-surface);
   --color-ink: var(--brand-text);

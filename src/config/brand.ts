@@ -10,14 +10,20 @@ export const brand = {
   companyName: "Your Company",
   /** Short name shown under the app icon on a phone's home screen (max ~12 characters). */
   shortName: "Timesheets",
-  /** Logo shown in the app header. Put the file in the /public folder. */
+  /** Full logo, shown large on the sign-in screen. Put the file in the /public folder. */
   logoPath: "/logo.svg",
+  /** Square icon shown small in the app's top bar (often just the symbol from the logo). */
+  iconPath: "/logo.svg",
+  /** Set to true if the logo already spells out the company name, so it isn't shown twice. */
+  logoIncludesName: false,
 
   colours: {
     /** Main colour: buttons, headers, highlights. */
     primary: "#1F5A48",
     /** Slightly darker version of the main colour, used when a button is pressed. */
     primaryDark: "#16443A",
+    /** Second brand colour, used for a thin stripe under the top bar. Same as primary to hide it. */
+    accent: "#1F5A48",
     /** Soft tint of the main colour, used for highlighted backgrounds. */
     primarySoft: "#E3EDE8",
     /** Page background (warm off-white). */

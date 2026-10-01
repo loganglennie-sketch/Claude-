@@ -13,6 +13,8 @@ export function LoginScreen() {
   const router = useRouter();
   const worker = useWorker();
   const companyName = useCompanyName();
+  // A logo with the name built in replaces the heading, unless a demo link has swapped the name.
+  const showFullLogo = brand.logoIncludesName && companyName === brand.companyName;
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +35,14 @@ export function LoginScreen() {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-10">
       <div className="mb-8 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brand.logoPath} alt="" width={72} height={72} className="mx-auto h-18 w-18 rounded-2xl" />
-        <h1 className="mt-4 text-2xl font-bold">{companyName}</h1>
+        {/* eslint-disable @next/next/no-img-element -- small logo files, no resizing needed */}
+        {showFullLogo ? (
+          <img src={brand.logoPath} alt="" className="mx-auto max-h-36 w-full max-w-72 object-contain" />
+        ) : (
+          <img src={brand.iconPath} alt="" width={72} height={72} className="mx-auto h-18 w-18 rounded-2xl object-contain" />
+        )}
+        {/* eslint-enable @next/next/no-img-element */}
+        <h1 className={showFullLogo ? "sr-only" : "mt-4 text-2xl font-bold"}>{companyName}</h1>
         <p className="text-muted">Sign in to fill in your timesheet</p>
       </div>
 

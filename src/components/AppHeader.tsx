@@ -3,11 +3,11 @@ import { CompanyName } from "@/lib/demo-company";
 
 export function AppHeader({ right, subtitle = "Timesheets", wide = false }: { right?: React.ReactNode; subtitle?: React.ReactNode; wide?: boolean }) {
   return (
-    <header className="sticky top-0 z-20 bg-brand text-white shadow-sm">
+    <header className="sticky top-0 z-20 border-b-4 border-accent bg-brand text-white shadow-sm">
       <div className={`mx-auto flex items-center gap-3 px-4 py-3 ${wide ? "max-w-6xl" : "max-w-xl"}`}>
         <div className="flex min-w-0 items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brand.logoPath} alt="" width={36} height={36} className="h-9 w-9 rounded-lg bg-white/10" />
+          <img src={brand.iconPath} alt="" width={40} height={40} className="h-10 w-10 rounded-xl bg-white object-contain p-1" />
           <div className="min-w-0 leading-tight">
             <div className="truncate text-base font-semibold">
               <CompanyName />
