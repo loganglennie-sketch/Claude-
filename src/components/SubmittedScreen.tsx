@@ -18,7 +18,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
   const store = useTimesheets();
   const worker = useWorker();
   const companyName = useCompanyName();
-  const { colours } = useDemoCompany();
+  const { colours, showOvertime } = useDemoCompany();
   const [busy, setBusy] = useState(false);
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
@@ -39,7 +39,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
     try {
       const { buildTimesheetPdf, pdfFileName } = await import("@/lib/pdf");
       const name = worker?.name ?? "Worker";
-      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet, colours });
+      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet, colours, showOvertime });
       downloadFile(bytes as BlobPart, pdfFileName(name, sheet.weekStart), "application/pdf");
     } finally {
       setBusy(false);
@@ -64,12 +64,12 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
 
       <Card className="grid grid-cols-2 divide-x divide-line p-0">
         <div className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted">Total</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted">Total hours worked</div>
           <div className="text-xl font-bold tabular-nums">{formatHM(totals.totalMinutes)}</div>
         </div>
         <div className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted">Overtime</div>
-          <div className="text-xl font-bold tabular-nums">{formatHM(totals.overtimeMinutes)}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted">{showOvertime ? "Overtime" : "Days worked"}</div>
+          <div className="text-xl font-bold tabular-nums">{showOvertime ? formatHM(totals.overtimeMinutes) : totals.daysWorked}</div>
         </div>
       </Card>
 

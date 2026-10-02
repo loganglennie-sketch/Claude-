@@ -1,10 +1,10 @@
 "use client";
 
-import { dayMinutes, entryMinutes, formatHM, minutesToHoursText, parseHours } from "@/lib/hours";
+import { dayMinutes, dayTimeline, entryMinutes, entrySpan, formatClock, formatHM, minutesToHoursText, parseHours, type TimelineItem } from "@/lib/hours";
 import { newJobEntry } from "@/lib/jobs";
 import { TimeInput } from "./TimeInput";
 import type { DayEntry, JobEntry } from "@/lib/types";
-import { formatDayMonth, formatDayName, toISODate } from "@/lib/week";
+import { formatDayMonth, formatDayName, parseISODate, toISODate } from "@/lib/week";
 
 const BREAK_CHOICES = [0, 15, 30, 45, 60];
 const STEP_MINUTES = 30;
@@ -17,14 +17,20 @@ type Props = {
   onCopyPrevious?: () => void;
   /** Company records start and finish times for every job (no "type the hours" option). */
   timesOnly?: boolean;
+  /** A problem that involves another day (e.g. starting before last night's shift ended). */
+  weekError?: string | null;
 };
 
-export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious, timesOnly = false }: Props) {
+export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious, timesOnly = false, weekError }: Props) {
   const blankEntry = () => newJobEntry(timesOnly ? { mode: "times" } : {});
   const { minutes } = dayMinutes(day);
   const isToday = day.date === toISODate(new Date());
   const labelId = `day-${day.date}`;
   const dayName = formatDayName(day.date);
+  const weekend = [0, 6].includes(parseISODate(day.date).getDay());
+  const timeline = dayTimeline(day);
+  const timedJobs = timeline.items.filter((i) => i.kind === "job" && i.span).length;
+  const clash = timeline.overlaps[0];
 
   const setJobs = (jobs: JobEntry[]) => onChange({ jobs });
   const patchJob = (id: string, patch: Partial<JobEntry>) => setJobs(day.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)));
@@ -40,6 +46,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
         <h2 id={labelId} className="text-lg font-semibold">
           {dayName} <span className="font-normal text-muted">{formatDayMonth(day.date)}</span>
         </h2>
+        {weekend && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-ink">Weekend</span>}
         {isToday && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-dark">Today</span>}
         <span
           aria-label={day.worked ? `${dayName} total ${formatHM(minutes)}` : `${dayName} off`}
@@ -75,10 +82,9 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
 
       {day.worked && (
         <div className="mt-4 space-y-3">
+          {readOnly && <Timeline items={timeline.items} />}
           {day.jobs.map((entry, i) =>
-            readOnly ? (
-              <ReadOnlyEntry key={entry.id} entry={entry} />
-            ) : (
+            readOnly ? null : (
               <JobEntryEditor
                 key={entry.id}
                 entry={entry}
@@ -102,6 +108,23 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
             >
               <span aria-hidden className="text-xl leading-none">+</span> {day.jobs.length === 0 ? "Add a job" : "Add another job"}
             </button>
+          )}
+
+          {!readOnly && timedJobs >= 2 && (
+            <div className="rounded-xl border border-line p-3">
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Your day in time order</div>
+              <Timeline items={timeline.items} compact />
+            </div>
+          )}
+
+          {(clash || weekError) && (
+            <p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm font-medium text-danger">
+              {clash
+                ? `${clash.a.entry.jobNumber.trim() || "A job"} (${formatClock(clash.a.span.start)}–${formatClock(clash.a.span.end)}) and ${
+                    clash.b.entry.jobNumber.trim() || "another job"
+                  } (${formatClock(clash.b.span.start)}–${formatClock(clash.b.span.end)}) overlap. Change the times so they don't cross.`
+                : weekError}
+            </p>
           )}
 
           {day.jobs.length > 1 && (
@@ -134,6 +157,7 @@ type EditorProps = {
 
 function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, onChange, onRemove }: EditorProps) {
   const { minutes, error } = entryMinutes(entry);
+  const span = entrySpan(entry);
   const touched = !!(entry.jobNumber || entry.hours || entry.start || entry.finish);
   const label = `${dayName} job ${index + 1}`;
 
@@ -216,6 +240,7 @@ function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, on
             <TimeInput label="Start" value={entry.start} onChange={(start) => onChange({ start })} />
             <TimeInput label="Finish" value={entry.finish} onChange={(finish) => onChange({ finish })} />
           </div>
+          {span?.overnight && <OvernightNote finish={entry.finish} />}
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-muted">
               Break <span className="font-normal">(minutes, if any)</span>
@@ -254,18 +279,41 @@ function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, on
   );
 }
 
-function ReadOnlyEntry({ entry }: { entry: JobEntry }) {
-  const { minutes } = entryMinutes(entry);
+export function OvernightNote({ finish }: { finish: string }) {
   return (
-    <div className="flex items-baseline gap-3 rounded-xl bg-page/60 px-3 py-2.5">
-      <span className="text-lg font-semibold tracking-wide">{entry.jobNumber || "—"}</span>
-      {entry.mode === "times" && (
-        <span className="text-sm text-muted tabular-nums">
-          {entry.start}–{entry.finish}
-          {entry.breakMins > 0 && ` · ${entry.breakMins}m break`}
-        </span>
+    <p className="flex items-center gap-2 rounded-lg bg-brand-soft px-3 py-2 text-sm font-semibold text-brand-dark">
+      <span aria-hidden>🌙</span> Overnight: finishes {finish} the next day
+    </p>
+  );
+}
+
+/** Jobs in time order with gaps between them, e.g. "Gap 11:30–12:15 · 45 min". */
+export function Timeline({ items, compact = false }: { items: TimelineItem[]; compact?: boolean }) {
+  return (
+    <ul className={compact ? "space-y-1 text-sm" : "space-y-1.5"}>
+      {items.map((item, i) =>
+        item.kind === "gap" ? (
+          <li key={`gap-${i}`} className="flex items-center gap-2 rounded-lg border border-dashed border-line px-3 py-1.5 text-sm text-muted">
+            <span className="font-semibold">Gap</span>
+            <span className="tabular-nums">
+              {formatClock(item.from)}–{formatClock(item.to)}
+            </span>
+            <span className="ml-auto tabular-nums">{formatHM(item.minutes)}</span>
+          </li>
+        ) : (
+          <li key={item.entry.id} className={`flex flex-wrap items-baseline gap-x-3 rounded-lg ${compact ? "px-1" : "bg-page/60 px-3 py-2.5"}`}>
+            <span className={`font-semibold tracking-wide ${compact ? "" : "text-lg"}`}>{item.entry.jobNumber.trim() || "—"}</span>
+            {item.span && (
+              <span className="tabular-nums text-muted">
+                {formatClock(item.span.start)}–{formatClock(item.span.end)}
+                {item.entry.breakMins > 0 && ` · ${item.entry.breakMins}m break`}
+              </span>
+            )}
+            {item.span?.overnight && <span className="text-xs font-semibold text-brand-dark">🌙 overnight</span>}
+            <span className="ml-auto font-semibold tabular-nums">{formatHM(item.minutes)}</span>
+          </li>
+        ),
       )}
-      <span className="ml-auto font-semibold tabular-nums">{formatHM(minutes)}</span>
-    </div>
+    </ul>
   );
 }

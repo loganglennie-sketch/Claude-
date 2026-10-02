@@ -18,6 +18,8 @@ export type DemoCompany = {
   logoIncludesName: boolean;
   /** How workers record each job (see EntryMode in brand.ts). */
   entryMode: EntryMode;
+  /** Show "overtime over 40h" figures (see brand.ts). */
+  showOvertime: boolean;
   /** Folder in /public holding home-screen icons and manifest.webmanifest. */
   iconSet: string;
   colours: Colours;
@@ -38,6 +40,7 @@ export const DEFAULT_COMPANY: DemoCompany = {
   iconPath: brand.iconPath,
   logoIncludesName: brand.logoIncludesName,
   entryMode: brand.entryMode,
+  showOvertime: brand.showOvertime,
   iconSet: "/icons/default",
   colours: { ...brand.colours },
   team: [
@@ -64,6 +67,8 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
     logoIncludesName: true,
     // Pay depends on when work was done (day, evening, night, weekend), so every job needs clock times.
     entryMode: "times",
+    // Their job costing program applies all pay rules, so the app shows hours only.
+    showOvertime: false,
     iconSet: "/icons/nicol",
     colours: {
       primary: "#224596", // blue from the logo

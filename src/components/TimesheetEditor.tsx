@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { blankTimesheet, saveDraft, useHydrated, useTimesheets } from "@/lib/demo-store";
-import { formatHM, weekTotals } from "@/lib/hours";
+import { dayMinutes, formatHM, weekTotals } from "@/lib/hours";
 import { copyJobs, withTimesForEveryEntry } from "@/lib/jobs";
 import { useDemoCompany } from "@/lib/demo-company";
 import type { DayEntry, Timesheet } from "@/lib/types";
@@ -28,6 +28,7 @@ export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
       initial={timesOnly ? withTimesForEveryEntry(initial) : initial}
       jobHistory={collectJobs(store, company.jobs)}
       timesOnly={timesOnly}
+      showOvertime={company.showOvertime}
     />
   );
 }
@@ -38,7 +39,7 @@ function collectJobs(store: Record<string, Timesheet>, demoJobs: string[]): stri
   return [...jobs].sort();
 }
 
-function Editor({ initial, jobHistory, timesOnly }: { initial: Timesheet; jobHistory: string[]; timesOnly: boolean }) {
+function Editor({ initial, jobHistory, timesOnly, showOvertime }: { initial: Timesheet; jobHistory: string[]; timesOnly: boolean; showOvertime: boolean }) {
   const [sheet, setSheet] = useState(initial);
   const locked = sheet.status !== "draft";
   const totals = weekTotals(sheet.days);
@@ -89,6 +90,7 @@ function Editor({ initial, jobHistory, timesOnly }: { initial: Timesheet; jobHis
             onChange={(patch) => patchDay(i, patch)}
             onCopyPrevious={i > 0 ? () => copyPrevious(i) : undefined}
             timesOnly={timesOnly}
+            weekError={totals.errors.find((e) => e.date === day.date && e.error !== dayMinutes(day).error)?.error}
           />
         ))}
       </div>
@@ -97,15 +99,17 @@ function Editor({ initial, jobHistory, timesOnly }: { initial: Timesheet; jobHis
         <div className="mx-auto max-w-xl space-y-3 px-4 py-3">
           <div className="flex items-end justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted">Week total</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted">Total hours worked</div>
               <div className="text-3xl font-bold tabular-nums text-brand">{formatHM(totals.totalMinutes)}</div>
             </div>
             <div className="text-right text-sm text-muted">
               {totals.daysWorked} day{totals.daysWorked === 1 ? "" : "s"} worked
-              <div className={totals.overtimeMinutes > 0 ? "font-semibold text-ink" : ""}>
-                Overtime: {formatHM(totals.overtimeMinutes)}
-                <span className="sr-only"> over {brand.overtimeThresholdHours} hours</span>
-              </div>
+              {showOvertime && (
+                <div className={totals.overtimeMinutes > 0 ? "font-semibold text-ink" : ""}>
+                  Overtime: {formatHM(totals.overtimeMinutes)}
+                  <span className="sr-only"> over {brand.overtimeThresholdHours} hours</span>
+                </div>
+              )}
             </div>
           </div>
           {!locked && (

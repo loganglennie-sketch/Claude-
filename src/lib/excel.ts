@@ -1,16 +1,19 @@
 /**
  * Builds the weekly Excel workbook for the office:
- *   1. Weekly hours       – one row per employee, hours per day, weekly total (for payroll)
- *   2. Hours by job       – grouped by job number: who worked on it, hours per day, job totals
- *   3. Job costing import – flat list (date, employee, job number, hours) for importing
+ *   1. Job entries            – one row per job entry with clock times (for job costing)
+ *   2. Daily & weekly totals  – one row per employee, hours per day and total hours worked
+ *   3. Hours by job           – grouped by job number: who worked on it and job totals
+ * No pay is worked out here; the company's own program applies its pay rules.
  */
 import ExcelJS from "exceljs";
 import { brand } from "@/config/brand";
-import { dayJobTotals, dayMinutes, weekTotals } from "./hours";
-import type { Timesheet } from "./types";
-import { formatShortDay, parseISODate, weekDates } from "./week";
+import { dayJobTotals, dayMinutes, dayTimeline, formatClock, formatHM, weekTotals, type EntrySpan } from "./hours";
+import type { JobEntry, Timesheet } from "./types";
+import { formatDayName, formatShortDay, parseISODate, weekDates } from "./week";
 
 export type ExportRow = { name: string; status: string; sheet: Timesheet | null };
+type Colours = { primary: string; primarySoft: string };
+export type WorkbookOptions = { colours?: Colours; showOvertime?: boolean };
 
 const hours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
 const argb = (hex: string) => `FF${hex.replace("#", "").toUpperCase()}`;
@@ -19,16 +22,45 @@ const excelDate = (iso: string) => {
   const d = parseISODate(iso);
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 };
+/** Real Excel time of day (fraction of a day), shown as hh:mm. */
+const excelTime = (minutes: number) => (((minutes % 1440) + 1440) % 1440) / 1440;
 /** Plain numbers stay numbers in Excel; anything with letters or a leading 0 stays as typed. */
 const jobCell = (job: string) => (/^[1-9]\d{0,14}$/.test(job) ? Number(job) : job);
 const byJob = (a: string, b: string) => a.localeCompare(b, "en-GB", { numeric: true });
 
-export async function buildWeekWorkbook(
-  weekStart: string,
-  rows: ExportRow[],
-  companyName: string,
-  colours: { primary: string; primarySoft: string } = brand.colours,
-): Promise<ArrayBuffer> {
+/** One job entry, ready to become a row on the "Job entries" sheet. */
+type EntryLine = {
+  employee: string;
+  date: string;
+  entry: JobEntry;
+  span: EntrySpan | null;
+  minutes: number;
+  gapBefore: { from: number; to: number; minutes: number } | null;
+};
+
+/**
+ * Columns of the "Job entries" sheet, in order. To match the job costing
+ * program's import layout, reorder, rename or remove entries in this list.
+ */
+export const JOB_ENTRY_COLUMNS: { header: string; width: number; numFmt?: string; value: (l: EntryLine) => ExcelJS.CellValue }[] = [
+  { header: "Employee", width: 22, value: (l) => l.employee },
+  { header: "Date", width: 12, numFmt: "dd/mm/yyyy", value: (l) => excelDate(l.date) },
+  { header: "Day", width: 11, value: (l) => formatDayName(l.date) },
+  { header: "Job number", width: 12, value: (l) => jobCell(l.entry.jobNumber.trim().toUpperCase()) },
+  { header: "Start", width: 8, numFmt: "hh:mm", value: (l) => (l.span ? excelTime(l.span.start) : null) },
+  { header: "Finish", width: 8, numFmt: "hh:mm", value: (l) => (l.span ? excelTime(l.span.end) : null) },
+  { header: "Break (mins)", width: 12, value: (l) => (l.span ? l.entry.breakMins || 0 : null) },
+  { header: "Hours", width: 8, numFmt: "0.00", value: (l) => hours(l.minutes) },
+  { header: "Overnight", width: 10, value: (l) => (l.span?.overnight ? "Yes" : "No") },
+  {
+    header: "Gap before this job",
+    width: 22,
+    value: (l) => (l.gapBefore ? `${formatClock(l.gapBefore.from)}–${formatClock(l.gapBefore.to)} (${formatHM(l.gapBefore.minutes)})` : null),
+  },
+];
+
+export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], companyName: string, options: WorkbookOptions = {}): Promise<ArrayBuffer> {
+  const { colours = brand.colours, showOvertime = brand.showOvertime } = options;
   const wb = new ExcelJS.Workbook();
   wb.creator = companyName;
   wb.created = new Date();
@@ -52,37 +84,73 @@ export async function buildWeekWorkbook(
   const col = (n: number) => String.fromCharCode(64 + n); // 1 → A (enough for these sheets)
   /** Adds up a column so totals show even in viewers that don't recalculate formulas. */
   const sumOf = (ws: ExcelJS.Worksheet, c: number, rowNumbers: number[]) =>
-    Math.round(rowNumbers.reduce((n, r) => {
-      const v = ws.getRow(r).getCell(c).value;
-      const num = typeof v === "number" ? v : v && typeof v === "object" && "result" in v ? Number(v.result) || 0 : 0;
-      return n + num;
-    }, 0) * 100) / 100;
+    Math.round(
+      rowNumbers.reduce((n, r) => {
+        const v = ws.getRow(r).getCell(c).value;
+        const num = typeof v === "number" ? v : v && typeof v === "object" && "result" in v ? Number(v.result) || 0 : 0;
+        return n + num;
+      }, 0) * 100,
+    ) / 100;
   const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 
-  // ── 1. Weekly hours ────────────────────────────────────────────────
-  const pay = wb.addWorksheet("Weekly hours");
-  header(pay, ["Employee", "Status", ...dayHeaders, "Total hours", "Overtime hours"]);
+  // ── 1. Job entries (one row per entry, no totals, so it imports cleanly) ──
+  const lines: EntryLine[] = [];
+  for (const r of submitted) {
+    for (const day of r.sheet!.days) {
+      let previous: { kind: string; from?: number; to?: number; minutes: number } | null = null;
+      for (const item of dayTimeline(day).items) {
+        if (item.kind === "job") {
+          const gapBefore = previous?.kind === "gap" ? { from: previous.from!, to: previous.to!, minutes: previous.minutes } : null;
+          lines.push({ employee: r.name, date: day.date, entry: item.entry, span: item.span, minutes: item.minutes, gapBefore });
+        }
+        previous = item;
+      }
+    }
+  }
+  const entries = wb.addWorksheet("Job entries");
+  header(entries, JOB_ENTRY_COLUMNS.map((c) => c.header));
+  for (const l of lines) entries.addRow(JOB_ENTRY_COLUMNS.map((c) => c.value(l)));
+  JOB_ENTRY_COLUMNS.forEach((c, i) => {
+    const column = entries.getColumn(i + 1);
+    column.width = c.width;
+    if (c.numFmt) column.numFmt = c.numFmt;
+  });
+  if (lines.length === 0) entries.addRow(["No submitted timesheets for this week yet"]);
+
+  // ── 2. Daily & weekly totals ─────────────────────────────────────────
+  const pay = wb.addWorksheet("Daily & weekly totals");
+  const totalCols = showOvertime ? 2 : 1;
+  header(pay, ["Employee", "Status", ...dayHeaders, "Total hours worked", ...(showOvertime ? ["Overtime hours"] : [])]);
   for (const r of employees) {
     if (!r.sheet) {
       pay.addRow([r.name, r.status]);
       continue;
     }
     const totals = weekTotals(r.sheet.days);
-    pay.addRow([r.name, r.status, ...r.sheet.days.map((d) => hours(dayMinutes(d).minutes)), hours(totals.totalMinutes), hours(totals.overtimeMinutes)]);
+    pay.addRow([
+      r.name,
+      r.status,
+      ...r.sheet.days.map((d) => hours(dayMinutes(d).minutes)),
+      hours(totals.totalMinutes),
+      ...(showOvertime ? [hours(totals.overtimeMinutes)] : []),
+    ]);
   }
   const lastPay = pay.rowCount;
   const payTotal = pay.addRow([
     "Total",
     `${submitted.length} of ${employees.length} submitted`,
-    ...Array.from({ length: 9 }, (_, i) => ({ formula: `SUM(${col(3 + i)}2:${col(3 + i)}${lastPay})`, result: sumOf(pay, 3 + i, range(2, lastPay)) })),
+    ...Array.from({ length: 7 + totalCols }, (_, i) => ({
+      formula: `SUM(${col(3 + i)}2:${col(3 + i)}${lastPay})`,
+      result: sumOf(pay, 3 + i, range(2, lastPay)),
+    })),
   ]);
   totalStyle(payTotal);
   pay.columns.forEach((c, i) => {
-    c.width = i === 0 ? 24 : i === 1 ? 20 : 11;
+    c.width = i === 0 ? 24 : i === 1 ? 20 : i === 9 ? 18 : 11;
     if (i >= 2) c.numFmt = "0.00";
   });
 
-  // ── 2. Hours by job ────────────────────────────────────────────────
+  // ── 3. Hours by job ─────────────────────────────────────────────────
   // job → employee → minutes per day
   const jobs = new Map<string, Map<string, number[]>>();
   for (const r of submitted) {
@@ -123,19 +191,6 @@ export async function buildWeekWorkbook(
     c.width = i === 0 ? 16 : i === 1 ? 24 : 11;
     if (i >= 2) c.numFmt = "0.00";
   });
-
-  // ── 3. Job costing import (flat, no totals, so it imports cleanly) ──
-  const flat = wb.addWorksheet("Job costing import");
-  header(flat, ["Date", "Employee", "Job number", "Hours"]);
-  const lines: { date: string; name: string; job: string; minutes: number }[] = [];
-  for (const r of submitted) {
-    r.sheet!.days.forEach((day) => dayJobTotals(day).forEach(({ jobNumber, minutes }) => lines.push({ date: day.date, name: r.name, job: jobNumber, minutes })));
-  }
-  lines.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name) || byJob(a.job, b.job));
-  for (const l of lines) flat.addRow([excelDate(l.date), l.name, jobCell(l.job), hours(l.minutes)]);
-  flat.getColumn(1).numFmt = "dd/mm/yyyy";
-  flat.getColumn(4).numFmt = "0.00";
-  [12, 24, 14, 10].forEach((w, i) => (flat.getColumn(i + 1).width = w));
 
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }

@@ -6,8 +6,8 @@ import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { approve, defaultPayrollWeek, markReminded, usePayrollWeek, useRemindedAt, type PayrollRow } from "@/lib/demo-payroll";
 import { useHydrated } from "@/lib/demo-store";
 import { downloadFile } from "@/lib/download";
-import { formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
-import { formatWeekRange } from "@/lib/week";
+import { entrySpan, formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
+import { formatWeekRange, parseISODate } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
 import { StatusBadge } from "../ui";
 import { WeekNav } from "../WeekNav";
@@ -33,7 +33,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
   const rows = usePayrollWeek(weekStart);
   const remindedAt = useRemindedAt(weekStart);
   const companyName = useCompanyName();
-  const { colours } = useDemoCompany();
+  const { colours, showOvertime } = useDemoCompany();
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -45,6 +45,11 @@ function Dashboard({ weekStart }: { weekStart: string }) {
   const sum = (pick: (t: ReturnType<typeof weekTotals>) => number) => submitted.reduce((n, r) => n + pick(weekTotals(r.sheet!.days)), 0);
   const totalMinutes = sum((t) => t.totalMinutes);
   const overtimeMinutes = sum((t) => t.overtimeMinutes);
+  // For companies without overtime figures: how many job entries were overnight or at the weekend.
+  const nightsAndWeekends = submitted.reduce(
+    (n, r) => n + r.sheet!.days.reduce((m, d) => m + (d.worked ? d.jobs.filter((j) => entrySpan(j)?.overnight || [0, 6].includes(parseISODate(d.date).getDay())).length : 0), 0),
+    0,
+  );
   const counts: Record<Filter, number> = { all: rows.length, submitted: toApprove.length, approved: rows.filter((r) => r.status === "approved").length, not_submitted: missing.length };
   const visible = filter === "all" ? rows : rows.filter((r) => r.status === filter);
   const open = rows.find((r) => r.workerId === openId) ?? null;
@@ -80,13 +85,13 @@ function Dashboard({ weekStart }: { weekStart: string }) {
         const [{ buildTimesheetPdf, pdfFileName }, { PDFDocument }] = await Promise.all([import("@/lib/pdf"), import("pdf-lib")]);
         if (withSheets.length === 1) {
           const r = withSheets[0];
-          const bytes = await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours });
+          const bytes = await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours, showOvertime });
           downloadFile(bytes as BlobPart, pdfFileName(r.name, weekStart), "application/pdf");
         } else {
           // One file with a page per worker, so the browser doesn't block lots of downloads.
           const combined = await PDFDocument.create();
           for (const r of withSheets) {
-            const doc = await PDFDocument.load(await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours }));
+            const doc = await PDFDocument.load(await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours, showOvertime }));
             (await combined.copyPages(doc, doc.getPageIndices())).forEach((p) => combined.addPage(p));
           }
           downloadFile((await combined.save()) as BlobPart, `timesheets-${weekStart}.pdf`, "application/pdf");
@@ -95,7 +100,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
         setBusy(false);
       }
     },
-    [companyName, weekStart, colours],
+    [companyName, weekStart, colours, showOvertime],
   );
 
   async function downloadExcel() {
@@ -103,7 +108,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
     try {
       const { buildWeekWorkbook, workbookFileName } = await import("@/lib/excel");
       const status = (r: PayrollRow) => (r.status === "approved" ? "Approved" : r.status === "submitted" ? "Submitted" : "Not submitted");
-      const bytes = await buildWeekWorkbook(weekStart, rows.map((r) => ({ name: r.name, status: status(r), sheet: r.sheet })), companyName, colours);
+      const bytes = await buildWeekWorkbook(weekStart, rows.map((r) => ({ name: r.name, status: status(r), sheet: r.sheet })), companyName, { colours, showOvertime });
       downloadFile(bytes, workbookFileName(companyName, weekStart), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       flash(`Excel downloaded for ${formatWeekRange(weekStart)}.`);
     } finally {
@@ -130,7 +135,11 @@ function Dashboard({ weekStart }: { weekStart: string }) {
         <Stat label="Submitted" value={`${submitted.length} / ${rows.length}`} note={`${toApprove.length} waiting for approval`} />
         <Stat label="Still to submit" value={String(missing.length)} note={missing.length ? missing.map((r) => r.name.split(" ")[0]).join(", ") : "Everyone's in"} tone={missing.length ? "warn" : undefined} />
         <Stat label="Total hours" value={formatDecimalHours(totalMinutes)} note={formatHM(totalMinutes)} />
-        <Stat label="Overtime hours" value={formatDecimalHours(overtimeMinutes)} note={`Over ${brand.overtimeThresholdHours}h per worker`} />
+        {showOvertime ? (
+          <Stat label="Overtime hours" value={formatDecimalHours(overtimeMinutes)} note={`Over ${brand.overtimeThresholdHours}h per worker`} />
+        ) : (
+          <Stat label="Nights & weekends" value={String(nightsAndWeekends)} note="Job entries overnight or on Sat/Sun" />
+        )}
       </div>
 
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -162,7 +171,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
             type="button"
             onClick={downloadExcel}
             disabled={busy}
-            title={`Weekly hours, hours by job and job costing import for ${formatWeekRange(weekStart)}`}
+            title={`Job entries, daily & weekly totals and hours by job for ${formatWeekRange(weekStart)}`}
             className={`${action} border-2 border-line bg-surface text-ink`}
           >
             {busy ? "Preparing…" : "Download Excel"}
@@ -179,7 +188,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
               <th className="px-3 py-3 font-semibold">Status</th>
               <th className="hidden px-3 py-3 text-right font-semibold md:table-cell">Days</th>
               <th className="px-3 py-3 text-right font-semibold">Hours</th>
-              <th className="hidden px-3 py-3 text-right font-semibold sm:table-cell">Overtime</th>
+              {showOvertime && <th className="hidden px-3 py-3 text-right font-semibold sm:table-cell">Overtime</th>}
               <th className="hidden px-3 py-3 font-semibold lg:table-cell">Submitted</th>
               <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
             </tr>
@@ -202,7 +211,9 @@ function Dashboard({ weekStart }: { weekStart: string }) {
                   </td>
                   <td className="hidden px-3 py-3 text-right tabular-nums md:table-cell">{t ? t.daysWorked : "–"}</td>
                   <td className="px-3 py-3 text-right font-semibold tabular-nums">{t ? formatDecimalHours(t.totalMinutes) : "–"}</td>
-                  <td className={`hidden px-3 py-3 text-right tabular-nums sm:table-cell ${t && t.overtimeMinutes > 0 ? "font-semibold" : "text-muted"}`}>{t ? formatDecimalHours(t.overtimeMinutes) : "–"}</td>
+                  {showOvertime && (
+                    <td className={`hidden px-3 py-3 text-right tabular-nums sm:table-cell ${t && t.overtimeMinutes > 0 ? "font-semibold" : "text-muted"}`}>{t ? formatDecimalHours(t.overtimeMinutes) : "–"}</td>
+                  )}
                   <td className="hidden px-3 py-3 text-sm text-muted lg:table-cell">{r.sheet?.submittedAt ? shortStamp.format(new Date(r.sheet.submittedAt)) : "–"}</td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     {r.status === "submitted" && (
@@ -246,6 +257,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
           onApprove={() => approveRow(open)}
           onRemind={() => remind([open])}
           onDownload={() => downloadPdf([open])}
+          showOvertime={showOvertime}
         />
       )}
     </div>

@@ -4,11 +4,18 @@
  */
 import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
 import { brand } from "@/config/brand";
-import { dayMinutes, entryMinutes, formatDecimalHours, formatHM, weekTotals } from "./hours";
+import { dayMinutes, dayTimeline, formatClock, formatDecimalHours, formatHM, weekTotals } from "./hours";
 import type { Timesheet } from "./types";
-import { addDays, formatDayMonth, formatDayName, formatWeekRange } from "./week";
+import { addDays, formatDayMonth, formatDayName, formatWeekRange, parseISODate } from "./week";
 
-type PdfInput = { companyName: string; workerName: string; sheet: Timesheet; colours?: { primary: string; primarySoft: string } };
+type PdfInput = {
+  companyName: string;
+  workerName: string;
+  sheet: Timesheet;
+  colours?: { primary: string; primarySoft: string };
+  /** Include basic/overtime split (off for companies whose own program applies pay rules). */
+  showOvertime?: boolean;
+};
 
 const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/London" });
 
@@ -17,7 +24,7 @@ function hexToRgb(hex: string) {
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
 
-export async function buildTimesheetPdf({ companyName, workerName, sheet, colours = brand.colours }: PdfInput): Promise<Uint8Array> {
+export async function buildTimesheetPdf({ companyName, workerName, sheet, colours = brand.colours, showOvertime = brand.showOvertime }: PdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Timesheet – ${workerName} – ${formatWeekRange(sheet.weekStart)}`);
   pdf.setAuthor(companyName);
@@ -69,14 +76,18 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet, colour
   detail("Submitted", sheet.submittedAt ? stamp.format(new Date(sheet.submittedAt)) : "–", left + 360);
   y -= 50;
 
-  // Daily table: one line per job entry, with the day's total on the right.
-  const col = { day: left + 8, job: left + 112, time: left + 200, hours: left + 410, total: right - 8 };
+  // Daily table: every job in time order with its clock times, gaps between jobs,
+  // overnight markers, and the day's total on the right.
+  const col = { day: left + 6, job: left + 92, start: left + 168, finish: left + 212, brk: left + 300, hours: left + 345, notes: left + 356, total: right - 6 };
   const tableHeader = () => {
     page.drawRectangle({ x: left, y: y - 8, width: right - left, height: 24, color: soft });
     text("Day", col.day, y, { font: bold, size: 9 });
     text("Job no.", col.job, y, { font: bold, size: 9 });
-    text("Start – finish", col.time, y, { font: bold, size: 9 });
+    text("Start", col.start, y, { font: bold, size: 9 });
+    text("Finish", col.finish, y, { font: bold, size: 9 });
+    text("Break", col.brk, y, { font: bold, size: 9, alignRight: true });
     text("Hours", col.hours, y, { font: bold, size: 9, alignRight: true });
+    text("Notes", col.notes, y, { font: bold, size: 9 });
     text("Day total", col.total, y, { font: bold, size: 9, alignRight: true });
     y -= 26;
   };
@@ -89,22 +100,32 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet, colour
   tableHeader();
 
   for (const day of sheet.days) {
-    const entries = day.worked ? day.jobs : [];
-    const rowHeight = Math.max(30, entries.length * 16 + 14);
+    const items = dayTimeline(day).items;
+    const weekend = [0, 6].includes(parseISODate(day.date).getDay());
+    const rowHeight = Math.max(weekend ? 40 : 30, items.length * 15 + 14);
     if (y - rowHeight < 50) {
       newPage();
       tableHeader();
     }
     text(formatDayName(day.date), col.day, y, { font: bold, size: 10 });
     text(formatDayMonth(day.date), col.day, y - 12, { size: 8, color: muted });
+    if (weekend) text("Weekend", col.day, y - 23, { font: bold, size: 7, color: muted });
     if (day.worked) {
-      entries.forEach((entry, i) => {
-        const lineY = y - i * 16;
-        text(fit(bold, entry.jobNumber.trim() || "–", 10, col.time - col.job - 8), col.job, lineY, { font: bold });
-        if (entry.mode === "times") {
-          text(`${entry.start} – ${entry.finish}${entry.breakMins > 0 ? `  (${entry.breakMins}m break)` : ""}`, col.time, lineY, { color: muted });
+      items.forEach((item, i) => {
+        const lineY = y - i * 15;
+        if (item.kind === "gap") {
+          text(`Gap ${formatClock(item.from)}–${formatClock(item.to)}  ·  ${formatHM(item.minutes)}`, col.job, lineY, { size: 8.5, color: muted });
+          return;
         }
-        text(formatDecimalHours(entryMinutes(entry).minutes), col.hours, lineY, { alignRight: true });
+        const { entry, span } = item;
+        text(fit(bold, entry.jobNumber.trim() || "–", 10, col.start - col.job - 6), col.job, lineY, { font: bold });
+        if (span) {
+          text(formatClock(span.start), col.start, lineY);
+          text(`${formatClock(span.end)}${span.overnight ? " (+1)" : ""}`, col.finish, lineY);
+          text(entry.breakMins > 0 ? `${entry.breakMins}m` : "–", col.brk, lineY, { alignRight: true, color: entry.breakMins > 0 ? ink : muted });
+        }
+        text(formatDecimalHours(item.minutes), col.hours, lineY, { alignRight: true });
+        if (span?.overnight) text("Overnight", col.notes, lineY, { font: bold, size: 8.5, color: green });
       });
       text(formatDecimalHours(dayMinutes(day).minutes), col.total, y, { font: bold, alignRight: true });
     } else {
@@ -115,13 +136,14 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet, colour
     page.drawLine({ start: { x: left, y: y + 6 }, end: { x: right, y: y + 6 }, thickness: 0.5, color: line });
     y -= 8;
   }
+  text("Times are 24-hour. (+1) = finished the next day. Hours are after breaks.", left, y - 2, { size: 7.5, color: muted });
+  y -= 14;
 
   // Keep totals, declaration and signature together.
   if (y < 290) newPage();
 
   // Totals
   const totals = weekTotals(sheet.days);
-  const basic = totals.totalMinutes - totals.overtimeMinutes;
   y -= 6;
   const totalRow = (label: string, minutes: number, strong = false) => {
     text(label, right - 240, y, { font: strong ? bold : regular, size: strong ? 12 : 10 });
@@ -129,11 +151,13 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet, colour
     text(`${formatDecimalHours(minutes)} h`, right - 8, y, { font: strong ? bold : regular, size: strong ? 12 : 10, alignRight: true });
     y -= 18;
   };
-  totalRow("Basic hours", basic);
-  totalRow(`Overtime (over ${brand.overtimeThresholdHours}h)`, totals.overtimeMinutes);
-  page.drawLine({ start: { x: right - 240, y: y + 12 }, end: { x: right, y: y + 12 }, thickness: 1, color: ink });
-  y -= 2;
-  totalRow("Total hours", totals.totalMinutes, true);
+  if (showOvertime) {
+    totalRow("Basic hours", totals.totalMinutes - totals.overtimeMinutes);
+    totalRow(`Overtime (over ${brand.overtimeThresholdHours}h)`, totals.overtimeMinutes);
+    page.drawLine({ start: { x: right - 240, y: y + 12 }, end: { x: right, y: y + 12 }, thickness: 1, color: ink });
+    y -= 2;
+  }
+  totalRow("Total hours worked", totals.totalMinutes, true);
 
   // Declaration and signature
   y -= 20;

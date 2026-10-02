@@ -11,7 +11,7 @@ import type { DemoCompany } from "@/config/demo-companies";
 import { useDemoCompany } from "./demo-company";
 import { approveTimesheet as approveOwnTimesheet, useTimesheets } from "./demo-store";
 import type { DayEntry, Timesheet } from "./types";
-import { addDays, currentWeekStart, isoWeekNumber, parseISODate, weekDates } from "./week";
+import { addDays, currentWeekStart, isoWeekNumber, parseISODate, toISODate, weekDates } from "./week";
 
 export type PayrollStatus = "not_submitted" | "submitted" | "approved";
 export type PayrollRow = { workerId: string; name: string; role: string; status: PayrollStatus; sheet: Timesheet | null };
@@ -48,33 +48,7 @@ function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][number], in
   const status: PayrollStatus = !latest ? "approved" : (company.latestStatuses[index] ?? "submitted");
   if (status === "not_submitted") return { status, sheet: null };
 
-  const mainJob = pick(rand, JOBS);
-  const holiday = rand() < 0.12 ? Math.floor(rand() * 5) : -1;
-  const worksSaturday = rand() < 0.35;
-  const days: DayEntry[] = weekDates(weekStart).map((date, i) => {
-    const worked = i < 5 ? i !== holiday : i === 5 && worksSaturday;
-    if (!worked) return { date, worked: false, jobs: [] };
-    // Hours actually worked that day, in half hours, then split across 1–3 jobs.
-    const halfHours = i === 5 ? pick(rand, [8, 9, 10]) : pick(rand, [15, 16, 16, 17, 18, 19]);
-    const roll = rand();
-    const parts = roll < 0.55 ? 1 : roll < 0.9 ? 2 : 3;
-    const splits: number[] = [];
-    let left = halfHours;
-    for (let k = parts; k > 1; k--) {
-      const share = Math.max(2, Math.min(left - 2 * (k - 1), Math.round((left / k) * (0.6 + rand() * 0.8))));
-      splits.push(share);
-      left -= share;
-    }
-    splits.push(left);
-    const used = new Set<string>();
-    const jobs = splits.map((h, k) => {
-      let job = k === 0 && rand() < 0.75 ? mainJob : pick(rand, JOBS);
-      while (used.has(job)) job = pick(rand, JOBS);
-      used.add(job);
-      return { id: `${date}-${k}`, jobNumber: job, mode: "hours" as const, hours: String(h / 2), start: "", finish: "", breakMins: 0 };
-    });
-    return { date, worked: true, jobs };
-  });
+  const days = company.entryMode === "times" ? timedWeek(index, weekStart, rand, JOBS) : typedHoursWeek(weekStart, rand, JOBS);
 
   // Most people submit on Friday afternoon. If that's still to come, pretend it was
   // 1–4 hours ago (rounded to the hour so the demo doesn't change on every reload).
@@ -202,3 +176,89 @@ export function usePayrollWeek(weekStart: string): PayrollRow[] {
   return rows.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Made-up week for companies that type hours (job numbers and hours only). */
+function typedHoursWeek(weekStart: string, rand: () => number, JOBS: string[]): DayEntry[] {
+  const mainJob = pick(rand, JOBS);
+  const holiday = rand() < 0.12 ? Math.floor(rand() * 5) : -1;
+  const worksSaturday = rand() < 0.35;
+  return weekDates(weekStart).map((date, i) => {
+    const worked = i < 5 ? i !== holiday : i === 5 && worksSaturday;
+    if (!worked) return { date, worked: false, jobs: [] };
+    // Hours actually worked that day, in half hours, then split across 1–3 jobs.
+    const halfHours = i === 5 ? pick(rand, [8, 9, 10]) : pick(rand, [15, 16, 16, 17, 18, 19]);
+    const roll = rand();
+    const parts = roll < 0.55 ? 1 : roll < 0.9 ? 2 : 3;
+    const splits: number[] = [];
+    let left = halfHours;
+    for (let k = parts; k > 1; k--) {
+      const share = Math.max(2, Math.min(left - 2 * (k - 1), Math.round((left / k) * (0.6 + rand() * 0.8))));
+      splits.push(share);
+      left -= share;
+    }
+    splits.push(left);
+    const used = new Set<string>();
+    const jobs = splits.map((h, k) => {
+      let job = k === 0 && rand() < 0.75 ? mainJob : pick(rand, JOBS);
+      while (used.has(job)) job = pick(rand, JOBS);
+      used.add(job);
+      return { id: `${date}-${k}`, jobNumber: job, mode: "hours" as const, hours: String(h / 2), start: "", finish: "", breakMins: 0 };
+    });
+    return { date, worked: true, jobs };
+  });
+
+}
+
+// ── Made-up weeks with clock times (companies that record start and finish) ──
+// Each template is a list of [job slot, start, finish, break minutes]; slots A/B/C get different job numbers.
+type Slot = 0 | 1 | 2;
+const TEMPLATES: Record<string, [Slot, string, string, number][]> = {
+  normal: [[0, "07:30", "16:30", 30]],
+  split: [[0, "07:30", "11:30", 0], [1, "12:15", "16:45", 30]], // 45 min gap travelling between sites
+  split3: [[0, "07:00", "10:00", 0], [1, "10:30", "13:00", 0], [2, "13:45", "17:00", 30]],
+  dayPlusEvening: [[0, "07:30", "15:30", 30], [1, "17:30", "21:00", 0]],
+  night: [[0, "22:00", "06:00", 30]], // runs past midnight
+  short: [[0, "07:30", "13:00", 0]],
+  saturday: [[0, "08:00", "12:30", 0]],
+  sunday: [[0, "09:00", "13:00", 0]],
+};
+type Week = (keyof typeof TEMPLATES | null)[];
+/** Showcase weeks for the latest two weeks, by team position, so every feature appears. */
+const SHOWCASE: Week[] = [
+  ["split", "normal", "split3", "dayPlusEvening", "normal", "saturday", null], // splits, gaps, evening, Saturday
+  ["night", "night", "night", "night", null, null, "night"], // night shifts incl. Sunday night
+  ["normal", "split", "normal", "split", "split3", null, null],
+  ["normal", "normal", "normal", "normal", "normal", null, null],
+  ["normal", "normal", "dayPlusEvening", "normal", "short", "saturday", null],
+];
+
+function timedWeek(index: number, weekStart: string, rand: () => number, JOBS: string[]): DayEntry[] {
+  const showcase = weekStart >= addDays(defaultPayrollWeek(), -7);
+  const nights = index % SHOWCASE.length === 1;
+  const week: Week = showcase
+    ? SHOWCASE[index % SHOWCASE.length]
+    : weekDates(weekStart).map((_, i) => {
+        if (nights) return i < 4 ? "night" : null;
+        if (i === 5) return rand() < 0.35 ? "saturday" : null;
+        if (i === 6) return rand() < 0.08 ? "sunday" : null;
+        if (rand() < 0.08) return null; // day off
+        const r = rand();
+        return r < 0.5 ? "normal" : r < 0.75 ? "split" : r < 0.87 ? "split3" : "dayPlusEvening";
+      });
+  const today = toISODate(new Date());
+  return weekDates(weekStart).map((date, i) => {
+    const template = week[i];
+    // Days that haven't happened yet are left empty.
+    if (!template || date > today) return { date, worked: false, jobs: [] };
+    const slots = [...JOBS].sort(() => rand() - 0.5).slice(0, 3);
+    const jobs = TEMPLATES[template].map(([slot, start, finish, breakMins], k) => ({
+      id: `${date}-${k}`,
+      jobNumber: slots[slot],
+      mode: "times" as const,
+      hours: "",
+      start,
+      finish,
+      breakMins,
+    }));
+    return { date, worked: true, jobs };
+  });
+}

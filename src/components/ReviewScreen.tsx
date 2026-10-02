@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { brand } from "@/config/brand";
 import { blankTimesheet, submitTimesheet, useHydrated, useTimesheets } from "@/lib/demo-store";
-import { dayMinutes, entryMinutes, formatHM, weekTotals } from "@/lib/hours";
-import { formatDayMonth, formatShortDay, formatWeekRange } from "@/lib/week";
+import { dayMinutes, dayTimeline, formatHM, weekTotals } from "@/lib/hours";
+import { Timeline } from "./DayCard";
+import { formatDayMonth, formatShortDay, formatWeekRange, parseISODate } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
 import { useDemoCompany } from "@/lib/demo-company";
 import { withTimesForEveryEntry } from "@/lib/jobs";
@@ -56,27 +57,19 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
           <tbody>
             {sheet.days.map((day) => {
               const r = dayMinutes(day);
+              const error = totals.errors.find((e) => e.date === day.date)?.error;
               return (
                 <tr key={day.date} className="border-b border-line last:border-0 align-top">
                   <td className="px-4 py-3">
                     <div className="font-semibold">{formatShortDay(day.date)}</div>
                     <div className="text-xs text-muted">{formatDayMonth(day.date)}</div>
+                    {[0, 6].includes(parseISODate(day.date).getDay()) && <div className="mt-1 text-xs font-semibold text-muted">Weekend</div>}
                   </td>
                   <td className="px-2 py-3 text-sm">
                     {day.worked ? (
                       <>
-                        <ul className="space-y-1">
-                          {day.jobs.map((j) => (
-                            <li key={j.id} className="flex gap-2 tabular-nums">
-                              <span className="font-semibold">{j.jobNumber.trim() || "No job no."}</span>
-                              <span className="text-muted">
-                                {formatHM(entryMinutes(j).minutes)}
-                                {j.mode === "times" && j.start && j.finish && ` (${j.start}–${j.finish})`}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                        {r.error && <div className="font-medium text-danger">{r.error}</div>}
+                        <Timeline items={dayTimeline(day).items} compact />
+                        {error && <div className="mt-1 font-medium text-danger">{error}</div>}
                       </>
                     ) : (
                       <span className="text-muted">Day off</span>
@@ -90,8 +83,8 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
           <tfoot>
             <tr className="border-t-2 border-line bg-brand-soft">
               <td colSpan={2} className="px-4 py-3 font-semibold">
-                Total
-                {totals.overtimeMinutes > 0 && (
+                Total hours worked
+                {company.showOvertime && totals.overtimeMinutes > 0 && (
                   <div className="text-sm font-normal">
                     incl. {formatHM(totals.overtimeMinutes)} overtime (over {brand.overtimeThresholdHours}h)
                   </div>

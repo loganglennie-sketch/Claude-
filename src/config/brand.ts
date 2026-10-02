@@ -54,6 +54,12 @@ export const brand = {
   /** How workers record each job (see EntryMode above). */
   entryMode: "hours-or-times" as EntryMode,
 
+  /**
+   * Show "overtime over X hours" figures. Turn off for companies whose own
+   * payroll or job costing program applies its pay rules.
+   */
+  showOvertime: true,
+
   /** Weekly hours after which time counts as overtime. */
   overtimeThresholdHours: 40,
 
