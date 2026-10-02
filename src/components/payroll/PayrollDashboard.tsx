@@ -6,7 +6,6 @@ import { useCompanyName } from "@/lib/demo-company";
 import { approve, defaultPayrollWeek, markReminded, usePayrollWeek, useRemindedAt, type PayrollRow } from "@/lib/demo-payroll";
 import { useHydrated } from "@/lib/demo-store";
 import { downloadFile } from "@/lib/download";
-import { weekToCsv } from "@/lib/csv";
 import { formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
@@ -98,10 +97,19 @@ function Dashboard({ weekStart }: { weekStart: string }) {
     [companyName, weekStart],
   );
 
-  function exportCsv() {
-    const csv = weekToCsv(weekStart, rows.map((r) => ({ name: r.name, status: toBadge(r.status) === "draft" ? "Not submitted" : r.status === "approved" ? "Approved" : "Submitted", sheet: r.sheet })));
-    downloadFile(csv, `timesheets-${weekStart}.csv`, "text/csv;charset=utf-8");
+  async function downloadExcel() {
+    setBusy(true);
+    try {
+      const { buildWeekWorkbook, workbookFileName } = await import("@/lib/excel");
+      const status = (r: PayrollRow) => (r.status === "approved" ? "Approved" : r.status === "submitted" ? "Submitted" : "Not submitted");
+      const bytes = await buildWeekWorkbook(weekStart, rows.map((r) => ({ name: r.name, status: status(r), sheet: r.sheet })), companyName);
+      downloadFile(bytes, workbookFileName(companyName, weekStart), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      flash(`Excel downloaded for ${formatWeekRange(weekStart)}.`);
+    } finally {
+      setBusy(false);
+    }
   }
+
 
   const action = "min-h-11 whitespace-nowrap rounded-xl px-3 text-sm font-semibold disabled:opacity-40";
 
@@ -149,8 +157,14 @@ function Dashboard({ weekStart }: { weekStart: string }) {
           <button type="button" onClick={() => downloadPdf(submitted)} disabled={busy || submitted.length === 0} className={`${action} border-2 border-line bg-surface text-ink`}>
             {busy ? "Preparing…" : "Download PDFs"}
           </button>
-          <button type="button" onClick={exportCsv} className={`${action} border-2 border-line bg-surface text-ink`}>
-            Export CSV
+          <button
+            type="button"
+            onClick={downloadExcel}
+            disabled={busy}
+            title={`Weekly hours, hours by job and job costing import for ${formatWeekRange(weekStart)}`}
+            className={`${action} border-2 border-line bg-surface text-ink`}
+          >
+            {busy ? "Preparing…" : "Download Excel"}
           </button>
         </div>
       </div>
