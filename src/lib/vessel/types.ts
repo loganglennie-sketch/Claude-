@@ -47,6 +47,21 @@ export type DayCell = { shift: ShiftCode; hours: number };
  */
 export type TripStatus = "in_progress" | "submitted" | "queried" | "approved";
 
+/** A question from the office about one line (person) of a trip sheet. */
+export type TripQuery = {
+  id: string;
+  /** The crew line being queried. */
+  crewId: string;
+  /** A particular day, if the query is about one day. */
+  date?: string;
+  comment: string;
+  /** Who in the office asked, and when (ISO timestamp). */
+  by: string;
+  at: string;
+  /** Set when the vessel sends the sheet back in (stage 3). */
+  answeredAt?: string;
+};
+
 export type Trip = {
   id: string;
   vesselId: string;
@@ -75,4 +90,6 @@ export type Trip = {
   signaturePath?: string;
   approvedAt?: string;
   approvedBy?: string;
+  /** Office queries, oldest first. */
+  queries?: TripQuery[];
 };

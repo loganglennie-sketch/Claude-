@@ -6,10 +6,12 @@ type Props = {
   /** Called with a PNG image of the signature, or null when cleared. */
   onChange: (dataUrl: string | null) => void;
   hasSignature: boolean;
+  /** Shown in the empty box. */
+  prompt?: string;
 };
 
 /** A box the worker signs in with a finger (or mouse). */
-export function SignaturePad({ onChange, hasSignature }: Props) {
+export function SignaturePad({ onChange, hasSignature, prompt = "Sign here with your finger" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -84,7 +86,7 @@ export function SignaturePad({ onChange, hasSignature }: Props) {
           onPointerLeave={end}
         />
         {!hasSignature && (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted/70">Sign here with your finger</span>
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted/70">{prompt}</span>
         )}
         <div className="pointer-events-none absolute inset-x-6 bottom-9 border-b border-line" />
       </div>

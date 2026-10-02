@@ -10,7 +10,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { toISODate } from "../week";
 import { demoFleet } from "./demo-data";
 import { isEditable, newId, nextReference, uniqueCrew } from "./trips";
-import type { Person, Trip, Vessel } from "./types";
+import type { Person, Trip, TripQuery, Vessel } from "./types";
 
 const KEY = "timesheets:vessel:v1";
 type Fleet = { vessels: Vessel[]; people: Person[]; trips: Trip[] };
@@ -127,6 +127,48 @@ export function deleteTrip(id: string) {
   const trip = fleet.trips.find((t) => t.id === id);
   if (!trip || trip.status !== "in_progress") return;
   write({ ...fleet, trips: fleet.trips.filter((t) => t.id !== id) });
+}
+
+/** Vessel: the master signs and sends the trip sheet to the office. Any office queries count as answered. */
+export function submitTrip(id: string, signedBy: string, signature: string) {
+  const fleet = read();
+  const trip = fleet.trips.find((t) => t.id === id);
+  if (!trip || !isEditable(trip)) return;
+  const now = new Date().toISOString();
+  const submitted: Trip = {
+    ...trip,
+    status: "submitted",
+    submittedAt: now,
+    updatedAt: now,
+    signedBy,
+    signature,
+    signaturePath: undefined,
+    queries: trip.queries?.map((q) => (q.answeredAt ? q : { ...q, answeredAt: now })),
+  };
+  write({ ...fleet, trips: fleet.trips.map((t) => (t.id === id ? submitted : t)) });
+}
+
+function updateSubmitted(id: string, change: (t: Trip) => Trip) {
+  const fleet = read();
+  const trip = fleet.trips.find((t) => t.id === id);
+  if (!trip || trip.status !== "submitted") return; // only sheets waiting for the office
+  write({ ...fleet, trips: fleet.trips.map((t) => (t.id === id ? { ...change(t), updatedAt: new Date().toISOString() } : t)) });
+}
+
+/** Office: signs the trip sheet off. Approved trips are locked for good. */
+export function approveTrip(id: string, by: string) {
+  updateSubmitted(id, (t) => ({ ...t, status: "approved", approvedAt: new Date().toISOString(), approvedBy: by }));
+}
+
+/** Office: sends the sheet back to the vessel with a comment on each queried line. */
+export function queryTrip(id: string, items: Pick<TripQuery, "crewId" | "date" | "comment">[], by: string) {
+  if (!items.length) return;
+  const at = new Date().toISOString();
+  updateSubmitted(id, (t) => ({
+    ...t,
+    status: "queried",
+    queries: [...(t.queries ?? []), ...items.map((q) => ({ id: newId("q"), ...q, comment: q.comment.trim(), by, at }))],
+  }));
 }
 
 /** Puts the demo fleet back as it was. */

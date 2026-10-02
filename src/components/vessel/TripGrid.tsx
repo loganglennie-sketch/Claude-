@@ -5,7 +5,7 @@ import { SHIFT_TYPES, shiftType, type ShiftCode } from "@/config/vessel";
 import { saveTrip, useFleet } from "@/lib/vessel/store";
 import { dayTotals, formatHours, isChanged, memberTotals, parseHours, tripTotals, withCells, type CellRef } from "@/lib/vessel/sheet";
 import { cellFor, formatDate, isOnBoard, sortCrew, tripDates } from "@/lib/vessel/trips";
-import type { Trip } from "@/lib/vessel/types";
+import type { CrewMember, Trip } from "@/lib/vessel/types";
 import { formatShortDay, parseISODate, toISODate } from "@/lib/week";
 
 /** How each shift looks in the grid. */
@@ -25,7 +25,19 @@ type Pos = { r: number; c: number };
  * and can be changed: click a cell (or drag, or Shift+click, to pick several),
  * then type a letter or use the buttons above.
  */
-export function TripGrid({ trip, editable }: { trip: Trip; editable: boolean }) {
+export function TripGrid({
+  trip,
+  editable,
+  rowAction,
+  flagged = {},
+}: {
+  trip: Trip;
+  editable: boolean;
+  /** Extra button shown under each person's name (e.g. the office's "Query"). */
+  rowAction?: (m: CrewMember) => React.ReactNode;
+  /** Lines the office has queried (crew member id → comment), shown in red. */
+  flagged?: Record<string, string>;
+}) {
   const { peopleById } = useFleet();
   const rows = sortCrew(trip.crew, peopleById);
   const dates = tripDates(trip);
@@ -233,13 +245,19 @@ export function TripGrid({ trip, editable }: { trip: Trip; editable: boolean }) 
                       select({ r, c: 0 }, { r, c: dates.length - 1 });
                     }}
                     title="Click to select all their days"
-                    className="sticky left-0 z-10 cursor-pointer whitespace-nowrap border-b border-r border-line bg-surface px-3 py-1 text-left font-normal"
+                    className={`sticky left-0 z-10 cursor-pointer whitespace-nowrap border-b border-r border-line px-3 py-1 text-left font-normal ${flagged[m.id] ? "border-l-4 border-l-danger bg-red-50" : "bg-surface"}`}
                   >
                     <div className="font-semibold">{person?.name ?? "Unknown"}</div>
                     <div className="text-xs text-muted">
                       {m.role}
                       {person?.employment === "agency" ? " · Agency" : ""}
                     </div>
+                    {flagged[m.id] && (
+                      <div className="max-w-56 truncate text-xs font-semibold text-danger" title={flagged[m.id]}>
+                        Query: {flagged[m.id]}
+                      </div>
+                    )}
+                    {rowAction && <div onMouseDown={(e) => e.stopPropagation()}>{rowAction(m)}</div>}
                   </th>
                   {dates.map((d, c) => {
                     const sel = inRect(r, c);

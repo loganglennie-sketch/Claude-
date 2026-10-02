@@ -12,6 +12,7 @@ import { AddCrewPanel, CrewChangePanel } from "./CrewPanels";
 import { Field, inputClass } from "./fields";
 import { useMyVesselId } from "./RequireVessel";
 import { TripBadge } from "./TripBadge";
+import { SubmitPanel } from "./SubmitPanel";
 import { TripGrid } from "./TripGrid";
 
 /** One trip: its details and who was on board when. */
@@ -34,7 +35,7 @@ export function TripScreen({ tripId }: { tripId: string }) {
 }
 
 type Panel = "add" | "change" | null;
-type Tab = "sheet" | "crew";
+type Tab = "sheet" | "crew" | "submit";
 
 function TripEditor({ trip }: { trip: Trip }) {
   const { trips, peopleById, vesselsById } = useFleet();
@@ -47,6 +48,8 @@ function TripEditor({ trip }: { trip: Trip }) {
   const problems = crewProblems(trip, trips, peopleById, vesselsById);
   const crew = sortCrew(trip.crew, peopleById);
   const peopleCount = new Set(trip.crew.map((m) => m.personId)).size;
+  const openQueries = (trip.queries ?? []).filter((q) => !q.answeredAt);
+  const flagged = Object.fromEntries(openQueries.map((q) => [q.crewId, q.comment]));
 
   const update = (next: Trip) => saveTrip(next);
   const updateMember = (id: string, patch: Partial<CrewMember>) => update({ ...trip, crew: trip.crew.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
@@ -80,26 +83,43 @@ function TripEditor({ trip }: { trip: Trip }) {
         </Card>
       )}
 
+      {openQueries.length > 0 && (
+        <Card className="space-y-2 border-2 border-danger/50">
+          <h2 className="font-semibold text-danger">
+            The office has {openQueries.length === 1 ? "a query" : `${openQueries.length} queries`} about this trip sheet
+          </h2>
+          <ul className="space-y-1 text-sm">
+            {openQueries.map((q) => {
+              const m = trip.crew.find((c) => c.id === q.crewId);
+              return (
+                <li key={q.id}>
+                  <strong>{m ? peopleById[m.personId]?.name : "A crew line"}</strong>
+                  {q.date && ` (${formatDate(q.date)})`}: “{q.comment}” <span className="text-muted">– {q.by}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-sm text-muted">Fix the lines marked in red on the daily sheet or crew list, then sign and send it back to the office.</p>
+        </Card>
+      )}
+
       <TripDetails trip={trip} editable={editable} onSave={update} />
 
       <div role="tablist" className="flex gap-1 border-b-2 border-line">
-        {(
-          [
-            ["sheet", "Daily sheet"],
-            ["crew", `Crew (${peopleCount})`],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`-mb-0.5 border-b-2 px-4 py-2 font-semibold ${tab === id ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`}
-          >
-            {label}
-          </button>
-        ))}
+        {([["sheet", "Daily sheet"], ["crew", `Crew (${peopleCount})`], ...(editable ? ([["submit", "✍ Sign & submit"]] as const) : [])] as const).map(
+          ([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`-mb-0.5 border-b-2 px-4 py-2 font-semibold ${tab === id ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`}
+            >
+              {label}
+            </button>
+          ),
+        )}
         {problems.length > 0 && (
           <button type="button" onClick={() => setTab("crew")} className="ml-auto self-center text-sm font-semibold text-danger">
             ⚠ {problems.length} crew {problems.length === 1 ? "problem" : "problems"} to fix
@@ -107,9 +127,19 @@ function TripEditor({ trip }: { trip: Trip }) {
         )}
       </div>
 
+      {tab === "submit" &&
+        (editable ? (
+          <SubmitPanel trip={trip} onShowCrew={() => setTab("crew")} />
+        ) : (
+          <Card className="space-y-1 border-2 border-brand bg-brand-soft">
+            <p className="text-lg font-semibold text-brand-dark">✓ Signed and sent to the office</p>
+            <p className="text-sm">{trip.reference} is now waiting for approval. It&apos;s locked unless the office sends it back with a query.</p>
+          </Card>
+        ))}
+
       {tab === "sheet" && (
         <Card>
-          <TripGrid trip={trip} editable={editable} />
+          <TripGrid trip={trip} editable={editable} flagged={flagged} />
         </Card>
       )}
 
