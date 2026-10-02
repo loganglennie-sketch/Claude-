@@ -1,5 +1,5 @@
 import { brand } from "@/config/brand";
-import type { DayEntry } from "./types";
+import type { DayEntry, JobEntry } from "./types";
 
 export function timeToMinutes(t: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t);
@@ -7,19 +7,73 @@ export function timeToMinutes(t: string): number | null {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
-export type DayResult = { minutes: number; error: string | null };
+/** Reads typed hours: "3", "3.5", "3,5", "3:30" or "3h30" → minutes. */
+export function parseHours(text: string): number | null {
+  const t = text.trim().toLowerCase();
+  if (!t) return null;
+  const hm = /^(\d{1,2})\s*(?::|h)\s*(\d{1,2})?\s*m?$/.exec(t);
+  if (hm) {
+    const mins = Number(hm[2] ?? 0);
+    return mins < 60 ? Number(hm[1]) * 60 + mins : null;
+  }
+  if (!/^\d{0,2}([.,]\d{0,2})?$/.test(t) || t === "." || t === ",") return null;
+  return Math.round(Number(t.replace(",", ".")) * 60);
+}
 
-/** Minutes worked for one day, or a plain-English problem to show the worker. */
-export function dayMinutes(day: DayEntry): DayResult {
-  if (!day.worked) return { minutes: 0, error: null };
-  const start = timeToMinutes(day.start);
-  const finish = timeToMinutes(day.finish);
-  if (start === null || finish === null) return { minutes: 0, error: "Add a start and finish time" };
-  if (finish <= start) return { minutes: 0, error: "Finish time must be after start time" };
-  const breakMins = Math.max(0, day.breakMins || 0);
-  const minutes = finish - start - breakMins;
-  if (minutes <= 0) return { minutes: 0, error: "Break is longer than the time worked" };
+/** 210 → "3.5" — how hours are shown back in the hours box. */
+export function minutesToHoursText(minutes: number): string {
+  return String(Math.round((minutes / 60) * 100) / 100);
+}
+
+export type Result = { minutes: number; error: string | null };
+
+const MAX_DAY_MINUTES = 24 * 60;
+
+/** Minutes for one job entry, or a plain-English problem to show the worker. */
+export function entryMinutes(entry: JobEntry): Result {
+  let minutes: number;
+  if (entry.mode === "hours") {
+    const parsed = parseHours(entry.hours);
+    if (parsed === null) return { minutes: 0, error: entry.hours.trim() ? "Hours should be a number, like 3 or 3.5" : "Add the hours" };
+    if (parsed <= 0) return { minutes: 0, error: "Hours must be more than 0" };
+    minutes = parsed;
+  } else {
+    const start = timeToMinutes(entry.start);
+    const finish = timeToMinutes(entry.finish);
+    if (start === null || finish === null) return { minutes: 0, error: "Add a start and finish time" };
+    if (finish <= start) return { minutes: 0, error: "Finish time must be after start time" };
+    minutes = finish - start - Math.max(0, entry.breakMins || 0);
+    if (minutes <= 0) return { minutes: 0, error: "Break is longer than the time worked" };
+  }
+  if (!entry.jobNumber.trim()) return { minutes, error: "Add the job number" };
   return { minutes, error: null };
+}
+
+/** Total minutes for a day, plus the first problem found (if any). */
+export function dayMinutes(day: DayEntry): Result {
+  if (!day.worked) return { minutes: 0, error: null };
+  if (day.jobs.length === 0) return { minutes: 0, error: "Add at least one job, or mark the day off" };
+  let minutes = 0;
+  let error: string | null = null;
+  for (const entry of day.jobs) {
+    const r = entryMinutes(entry);
+    minutes += r.minutes;
+    error ??= r.error;
+  }
+  if (!error && minutes > MAX_DAY_MINUTES) error = "That's more than 24 hours in one day";
+  return { minutes, error };
+}
+
+/** Hours per job number for one day (entries with the same job are added together). */
+export function dayJobTotals(day: DayEntry): { jobNumber: string; minutes: number }[] {
+  if (!day.worked) return [];
+  const totals = new Map<string, number>();
+  for (const entry of day.jobs) {
+    const job = entry.jobNumber.trim().toUpperCase();
+    const { minutes } = entryMinutes(entry);
+    if (job && minutes > 0) totals.set(job, (totals.get(job) ?? 0) + minutes);
+  }
+  return [...totals].map(([jobNumber, minutes]) => ({ jobNumber, minutes }));
 }
 
 export type WeekTotals = {

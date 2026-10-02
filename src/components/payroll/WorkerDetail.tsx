@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { brand } from "@/config/brand";
 import type { PayrollRow } from "@/lib/demo-payroll";
-import { dayMinutes, formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
+import { dayMinutes, entryMinutes, formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
 import { formatDayMonth, formatShortDay, formatWeekRange } from "@/lib/week";
 import { StatusBadge } from "../ui";
 import { Signature } from "./Signature";
@@ -75,32 +75,39 @@ export function WorkerDetail({ row, weekStart, remindedAt, onClose, onApprove, o
                 <thead className="bg-brand-soft text-xs uppercase tracking-wide text-brand-dark">
                   <tr>
                     <th className="px-4 py-2">Day</th>
-                    <th className="px-2 py-2">Start</th>
-                    <th className="px-2 py-2">Finish</th>
-                    <th className="px-2 py-2">Break</th>
-                    <th className="hidden px-2 py-2 sm:table-cell">Job / site</th>
-                    <th className="px-4 py-2 text-right">Hours</th>
+                    <th className="px-2 py-2">Job no. · hours</th>
+                    <th className="px-4 py-2 text-right">Day total</th>
                   </tr>
                 </thead>
                 <tbody className="tabular-nums">
                   {sheet.days.map((d) => (
                     <tr key={d.date} className="border-t border-line align-top">
-                      <td className="px-4 py-2.5">
+                      <td className="whitespace-nowrap px-4 py-2.5">
                         <span className="font-semibold">{formatShortDay(d.date)}</span> <span className="text-muted">{formatDayMonth(d.date)}</span>
-                        {d.worked && d.job && <div className="text-xs text-muted sm:hidden">{d.job}</div>}
                       </td>
                       {d.worked ? (
                         <>
-                          <td className="px-2 py-2.5">{d.start}</td>
-                          <td className="px-2 py-2.5">{d.finish}</td>
-                          <td className="px-2 py-2.5">{d.breakMins}m</td>
-                          <td className="hidden px-2 py-2.5 sm:table-cell">{d.job || "–"}</td>
+                          <td className="px-2 py-2.5">
+                            <ul className="space-y-1">
+                              {d.jobs.map((j) => (
+                                <li key={j.id} className="flex flex-wrap gap-x-2">
+                                  <span className="min-w-14 font-semibold">{j.jobNumber.trim() || "–"}</span>
+                                  <span>{formatDecimalHours(entryMinutes(j).minutes)}</span>
+                                  {j.mode === "times" && (
+                                    <span className="text-muted">
+                                      ({j.start}–{j.finish}
+                                      {j.breakMins > 0 && `, ${j.breakMins}m break`})
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
                           <td className="px-4 py-2.5 text-right font-semibold">{formatDecimalHours(dayMinutes(d).minutes)}</td>
                         </>
                       ) : (
                         <>
-                          <td colSpan={3} className="px-2 py-2.5 text-muted">Day off</td>
-                          <td className="hidden sm:table-cell" />
+                          <td className="px-2 py-2.5 text-muted">Day off</td>
                           <td className="px-4 py-2.5 text-right text-muted">–</td>
                         </>
                       )}
@@ -109,13 +116,11 @@ export function WorkerDetail({ row, weekStart, remindedAt, onClose, onApprove, o
                 </tbody>
                 <tfoot className="border-t-2 border-line bg-page/60 tabular-nums">
                   <tr>
-                    <td colSpan={4} className="px-4 py-2 text-muted sm:hidden">Overtime (over {brand.overtimeThresholdHours}h)</td>
-                    <td colSpan={5} className="hidden px-4 py-2 text-muted sm:table-cell">Overtime (over {brand.overtimeThresholdHours}h)</td>
+                    <td colSpan={2} className="px-4 py-2 text-muted">Overtime (over {brand.overtimeThresholdHours}h)</td>
                     <td className="px-4 py-2 text-right">{formatDecimalHours(totals.overtimeMinutes)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="px-4 py-2 font-bold sm:hidden">Total</td>
-                    <td colSpan={5} className="hidden px-4 py-2 font-bold sm:table-cell">Total ({formatHM(totals.totalMinutes)})</td>
+                    <td colSpan={2} className="px-4 py-2 font-bold">Week total ({formatHM(totals.totalMinutes)})</td>
                     <td className="px-4 py-2 text-right text-lg font-bold text-brand">{formatDecimalHours(totals.totalMinutes)}</td>
                   </tr>
                 </tfoot>

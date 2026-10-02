@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { brand } from "@/config/brand";
 import { blankTimesheet, submitTimesheet, useHydrated, useTimesheets } from "@/lib/demo-store";
-import { dayMinutes, formatHM, weekTotals } from "@/lib/hours";
+import { dayMinutes, entryMinutes, formatHM, weekTotals } from "@/lib/hours";
 import { formatDayMonth, formatShortDay, formatWeekRange } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
 import { SignaturePad } from "./SignaturePad";
@@ -45,7 +45,7 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
           <thead className="text-xs uppercase tracking-wide text-muted">
             <tr className="border-b border-line">
               <th className="px-4 py-2 font-semibold">Day</th>
-              <th className="px-2 py-2 font-semibold">Times</th>
+              <th className="px-2 py-2 font-semibold">Jobs</th>
               <th className="px-4 py-2 text-right font-semibold">Hours</th>
             </tr>
           </thead>
@@ -61,10 +61,17 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
                   <td className="px-2 py-3 text-sm">
                     {day.worked ? (
                       <>
-                        <div className="tabular-nums">
-                          {day.start || "?"}–{day.finish || "?"} <span className="text-muted">· {day.breakMins}m break</span>
-                        </div>
-                        {day.job && <div className="text-muted">{day.job}</div>}
+                        <ul className="space-y-1">
+                          {day.jobs.map((j) => (
+                            <li key={j.id} className="flex gap-2 tabular-nums">
+                              <span className="font-semibold">{j.jobNumber.trim() || "No job no."}</span>
+                              <span className="text-muted">
+                                {formatHM(entryMinutes(j).minutes)}
+                                {j.mode === "times" && j.start && j.finish && ` (${j.start}–${j.finish})`}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
                         {r.error && <div className="font-medium text-danger">{r.error}</div>}
                       </>
                     ) : (

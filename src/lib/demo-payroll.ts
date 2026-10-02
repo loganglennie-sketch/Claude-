@@ -26,14 +26,7 @@ const TEAM = [
 ];
 const DEMO_WORKER = { id: "demo", name: "Demo Worker", role: "You (from the worker app)" };
 
-const JOBS = [
-  "14 High St – kitchen refit",
-  "Riverside Flats – rewire",
-  "Oak Lodge – rear extension",
-  "St Mary's School – roof repair",
-  "Mill Lane – bathroom",
-  "Yard / workshop",
-];
+const JOBS = ["1042", "1051", "1063", "1077", "1088", "1094"];
 
 /** Latest week payroll normally works on: this week from Friday, otherwise last week. */
 export function defaultPayrollWeek(): string {
@@ -55,7 +48,6 @@ function seeded(seed: string) {
   };
 }
 const pick = <T,>(rand: () => number, items: readonly T[]) => items[Math.floor(rand() * items.length)];
-const hhmm = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
 function fakeSheet(worker: (typeof TEAM)[number], index: number, weekStart: string): { status: PayrollStatus; sheet: Timesheet | null } {
   const rand = seeded(`${worker.id}:${weekStart}`);
@@ -69,17 +61,27 @@ function fakeSheet(worker: (typeof TEAM)[number], index: number, weekStart: stri
   const worksSaturday = rand() < 0.35;
   const days: DayEntry[] = weekDates(weekStart).map((date, i) => {
     const worked = i < 5 ? i !== holiday : i === 5 && worksSaturday;
-    if (!worked) return { date, worked: false, start: "", finish: "", breakMins: 30, job: "" };
-    const start = pick(rand, [420, 420, 450, 450, 480]); // 07:00–08:00
-    const length = i === 5 ? pick(rand, [240, 270, 300]) : pick(rand, [510, 540, 540, 570, 600, 630]);
-    return {
-      date,
-      worked: true,
-      start: hhmm(start),
-      finish: hhmm(start + length),
-      breakMins: i === 5 ? 0 : pick(rand, [30, 30, 45]),
-      job: rand() < 0.75 ? mainJob : pick(rand, JOBS),
-    };
+    if (!worked) return { date, worked: false, jobs: [] };
+    // Hours actually worked that day, in half hours, then split across 1–3 jobs.
+    const halfHours = i === 5 ? pick(rand, [8, 9, 10]) : pick(rand, [15, 16, 16, 17, 18, 19]);
+    const roll = rand();
+    const parts = roll < 0.55 ? 1 : roll < 0.9 ? 2 : 3;
+    const splits: number[] = [];
+    let left = halfHours;
+    for (let k = parts; k > 1; k--) {
+      const share = Math.max(2, Math.min(left - 2 * (k - 1), Math.round((left / k) * (0.6 + rand() * 0.8))));
+      splits.push(share);
+      left -= share;
+    }
+    splits.push(left);
+    const used = new Set<string>();
+    const jobs = splits.map((h, k) => {
+      let job = k === 0 && rand() < 0.75 ? mainJob : pick(rand, JOBS);
+      while (used.has(job)) job = pick(rand, JOBS);
+      used.add(job);
+      return { id: `${date}-${k}`, jobNumber: job, mode: "hours" as const, hours: String(h / 2), start: "", finish: "", breakMins: 0 };
+    });
+    return { date, worked: true, jobs };
   });
 
   // Most people submit on Friday afternoon. If that's still to come, pretend it was

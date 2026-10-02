@@ -4,7 +4,7 @@
  */
 import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
 import { brand } from "@/config/brand";
-import { dayMinutes, formatDecimalHours, formatHM, weekTotals } from "./hours";
+import { dayMinutes, entryMinutes, formatDecimalHours, formatHM, weekTotals } from "./hours";
 import type { Timesheet } from "./types";
 import { addDays, formatDayMonth, formatDayName, formatWeekRange } from "./week";
 
@@ -21,7 +21,8 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet }: PdfI
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Timesheet – ${workerName} – ${formatWeekRange(sheet.weekStart)}`);
   pdf.setAuthor(companyName);
-  const page = pdf.addPage([595.28, 841.89]); // A4
+  const A4: [number, number] = [595.28, 841.89];
+  let page = pdf.addPage(A4);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const green = hexToRgb(brand.colours.primary);
@@ -68,37 +69,55 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet }: PdfI
   detail("Submitted", sheet.submittedAt ? stamp.format(new Date(sheet.submittedAt)) : "–", left + 360);
   y -= 50;
 
-  // Daily table
-  const cols = [
-    { label: "Day", x: left + 8, w: 90 },
-    { label: "Start", x: left + 100, w: 45 },
-    { label: "Finish", x: left + 150, w: 45 },
-    { label: "Break", x: left + 200, w: 45 },
-    { label: "Job / site", x: left + 250, w: 200 },
-  ];
-  page.drawRectangle({ x: left, y: y - 8, width: right - left, height: 24, color: soft });
-  cols.forEach((c) => text(c.label, c.x, y, { font: bold, size: 9 }));
-  text("Hours", right - 8, y, { font: bold, size: 9, alignRight: true });
-  y -= 30;
+  // Daily table: one line per job entry, with the day's total on the right.
+  const col = { day: left + 8, job: left + 112, time: left + 200, hours: left + 410, total: right - 8 };
+  const tableHeader = () => {
+    page.drawRectangle({ x: left, y: y - 8, width: right - left, height: 24, color: soft });
+    text("Day", col.day, y, { font: bold, size: 9 });
+    text("Job no.", col.job, y, { font: bold, size: 9 });
+    text("Start – finish", col.time, y, { font: bold, size: 9 });
+    text("Hours", col.hours, y, { font: bold, size: 9, alignRight: true });
+    text("Day total", col.total, y, { font: bold, size: 9, alignRight: true });
+    y -= 26;
+  };
+  const newPage = () => {
+    page = pdf.addPage(A4);
+    y = 841.89 - 50;
+    text(`${workerName} · ${formatWeekRange(sheet.weekStart)} (continued)`, left, y, { font: bold, size: 11 });
+    y -= 30;
+  };
+  tableHeader();
 
   for (const day of sheet.days) {
-    const mins = dayMinutes(day).minutes;
-    text(formatDayName(day.date), cols[0].x, y, { font: bold, size: 10 });
-    text(formatDayMonth(day.date), cols[0].x, y - 12, { size: 8, color: muted });
-    if (day.worked) {
-      text(day.start, cols[1].x, y);
-      text(day.finish, cols[2].x, y);
-      text(`${day.breakMins}m`, cols[3].x, y);
-      text(fit(regular, day.job || "–", 10, cols[4].w), cols[4].x, y);
-      text(formatDecimalHours(mins), right - 8, y, { font: bold, alignRight: true });
-    } else {
-      text("Day off", cols[1].x, y, { color: muted });
-      text("–", right - 8, y, { color: muted, alignRight: true });
+    const entries = day.worked ? day.jobs : [];
+    const rowHeight = Math.max(30, entries.length * 16 + 14);
+    if (y - rowHeight < 50) {
+      newPage();
+      tableHeader();
     }
-    y -= 22;
+    text(formatDayName(day.date), col.day, y, { font: bold, size: 10 });
+    text(formatDayMonth(day.date), col.day, y - 12, { size: 8, color: muted });
+    if (day.worked) {
+      entries.forEach((entry, i) => {
+        const lineY = y - i * 16;
+        text(fit(bold, entry.jobNumber.trim() || "–", 10, col.time - col.job - 8), col.job, lineY, { font: bold });
+        if (entry.mode === "times") {
+          text(`${entry.start} – ${entry.finish}${entry.breakMins > 0 ? `  (${entry.breakMins}m break)` : ""}`, col.time, lineY, { color: muted });
+        }
+        text(formatDecimalHours(entryMinutes(entry).minutes), col.hours, lineY, { alignRight: true });
+      });
+      text(formatDecimalHours(dayMinutes(day).minutes), col.total, y, { font: bold, alignRight: true });
+    } else {
+      text("Day off", col.job, y, { color: muted });
+      text("–", col.total, y, { color: muted, alignRight: true });
+    }
+    y -= rowHeight - 8;
     page.drawLine({ start: { x: left, y: y + 6 }, end: { x: right, y: y + 6 }, thickness: 0.5, color: line });
     y -= 8;
   }
+
+  // Keep totals, declaration and signature together.
+  if (y < 290) newPage();
 
   // Totals
   const totals = weekTotals(sheet.days);
@@ -138,8 +157,14 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet }: PdfI
   if (sheet.submittedAt) text(stamp.format(new Date(sheet.submittedAt)), left + 315, y - 55, { size: 9, color: muted });
   if (sheet.approvedAt) text(`Approved ${stamp.format(new Date(sheet.approvedAt))}`, left + 315, y - 75, { size: 9, color: green, font: bold });
 
-  // Footer
-  text(`Week ending ${formatDayName(addDays(sheet.weekStart, 6))} ${formatDayMonth(addDays(sheet.weekStart, 6))}  ·  ${companyName}`, left, 30, { size: 8, color: muted });
+  // Footer on every page
+  const pages = pdf.getPages();
+  const weekEnd = addDays(sheet.weekStart, 6);
+  pages.forEach((p, i) => {
+    page = p;
+    text(`Week ending ${formatDayName(weekEnd)} ${formatDayMonth(weekEnd)}  ·  ${companyName}`, left, 30, { size: 8, color: muted });
+    if (pages.length > 1) text(`Page ${i + 1} of ${pages.length}`, right, 30, { size: 8, color: muted, alignRight: true });
+  });
 
   return pdf.save();
 }

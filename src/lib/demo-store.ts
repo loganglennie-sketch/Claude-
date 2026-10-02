@@ -7,6 +7,7 @@
  */
 import { useSyncExternalStore } from "react";
 import type { DayEntry, Timesheet } from "./types";
+import { newJobEntry, normaliseTimesheet } from "./jobs";
 import { isoWeekNumber, weekDates } from "./week";
 
 const KEY = "timesheets:demo:v1";
@@ -27,7 +28,8 @@ function read(): Store {
   if (raw !== cachedRaw) {
     cachedRaw = raw;
     try {
-      cachedStore = raw ? (JSON.parse(raw) as Store) : {};
+      const parsed = raw ? (JSON.parse(raw) as Store) : {};
+      cachedStore = Object.fromEntries(Object.entries(parsed).map(([week, sheet]) => [week, normaliseTimesheet(sheet)]));
     } catch {
       cachedStore = {};
     }
@@ -73,10 +75,7 @@ export function blankTimesheet(weekStart: string): Timesheet {
   const days: DayEntry[] = weekDates(weekStart).map((date, i) => ({
     date,
     worked: i < 5, // Mon–Fri default to worked, weekend off
-    start: "",
-    finish: "",
-    breakMins: 30,
-    job: "",
+    jobs: i < 5 ? [newJobEntry()] : [],
   }));
   return { weekStart, days, status: "draft" };
 }

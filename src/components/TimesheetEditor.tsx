@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { blankTimesheet, saveDraft, useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
+import { copyJobs } from "@/lib/jobs";
 import type { DayEntry, Timesheet } from "@/lib/types";
 import { brand } from "@/config/brand";
 import { DayCard } from "./DayCard";
@@ -22,7 +23,7 @@ export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
 
 function collectJobs(store: Record<string, Timesheet>): string[] {
   const jobs = new Set<string>();
-  Object.values(store).forEach((s) => s.days.forEach((d) => d.job.trim() && jobs.add(d.job.trim())));
+  Object.values(store).forEach((s) => s.days.forEach((d) => d.jobs.forEach((j) => j.jobNumber.trim() && jobs.add(j.jobNumber.trim().toUpperCase()))));
   return [...jobs].sort();
 }
 
@@ -43,7 +44,7 @@ function Editor({ initial, jobHistory }: { initial: Timesheet; jobHistory: strin
 
   function copyPrevious(index: number) {
     const prev = sheet.days[index - 1];
-    patchDay(index, { worked: prev.worked, start: prev.start, finish: prev.finish, breakMins: prev.breakMins, job: prev.job });
+    patchDay(index, { worked: prev.worked, jobs: copyJobs(prev.jobs) });
   }
 
   return (
