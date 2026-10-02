@@ -55,6 +55,11 @@ function applyColours(company: DemoCompany) {
   const root = document.documentElement;
   for (const [name, value] of Object.entries(colourVars(company.colours))) root.style.setProperty(name, value);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", company.colours.primary);
+  // Home-screen icon and manifest, for when ?demo= picked a company on another address.
+  document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="manifest"]').forEach((link) => {
+    const href = link.getAttribute("href");
+    if (href?.startsWith("/icons/")) link.setAttribute("href", href.replace(/^\/icons\/[^/]+\//, `${company.iconSet}/`));
+  });
 }
 
 /** Picks up ?demo= and ?company= from the address bar. Mounted once in the root layout. */

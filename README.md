@@ -24,7 +24,7 @@ The demo uses the generic name "Your Company". To show a business its own name, 
 | 2. Accounts & database | Supabase (London region): sign-in with name + 4-digit PIN (checked on the server, PINs stored scrambled, lock-out after repeated wrong guesses), timesheets stored securely, row-level security, signatures in storage. | Supabase |
 | 3. Signed PDF email | On submit, a signed PDF is emailed to the payroll inbox. | Resend (+ a domain to send from) |
 | 4. Payroll dashboard | Weekly stats, filters, worker detail + signature, approve, reminders, signed PDF downloads, and one Excel file per week with three tabs: **Weekly hours** (payroll), **Hours by job**, and **Job costing import** (one row per employee per job per day). **Demo version done ✅** (made-up team). | — |
-| 5. Admin & PWA | Add/remove workers, set/reset PINs, payroll access, installable app with icon. | — |
+| 5. Admin & PWA | Add/remove workers, set/reset PINs, payroll access. **Home-screen icons done ✅** (per company: `public/icons/<company>/`). | — |
 | 6. Go live | Hosted on Vercel with your web address. | Vercel |
 
 ## Running it on your own computer

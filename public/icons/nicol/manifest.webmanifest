@@ -1,0 +1,30 @@
+{
+  "name": "Nicol of Skene Timesheets",
+  "short_name": "Timesheets",
+  "description": "Weekly timesheets, signed on your phone",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F7FB",
+  "theme_color": "#224596",
+  "icons": [
+    {
+      "src": "/icons/nicol/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/nicol/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/nicol/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

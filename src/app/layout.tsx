@@ -1,38 +1,45 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import type { CSSProperties } from "react";
 import { brand } from "@/config/brand";
-import { earlyColourScript } from "@/config/demo-companies";
+import { colourVars, companyIdForHost, earlyColourScript, findDemoCompany } from "@/config/demo-companies";
 import { CompanyFromLink } from "@/lib/demo-company";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: brand.shortName,
-  description: "Weekly timesheets, signed on your phone",
-};
+/** The company this web address belongs to (e.g. a "nicol" address → Nicol of Skene). */
+async function companyForThisAddress() {
+  return findDemoCompany(companyIdForHost((await headers()).get("host") ?? ""));
+}
 
-export const viewport: Viewport = {
-  themeColor: brand.colours.primary,
-  width: "device-width",
-  initialScale: 1,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await companyForThisAddress();
+  const icons = company.iconSet;
+  return {
+    title: company.id === "default" ? brand.shortName : `${brand.shortName} · ${company.companyName}`,
+    description: "Weekly timesheets, signed on your phone",
+    // What phones use when the app is added to the home screen.
+    manifest: `${icons}/manifest.webmanifest`,
+    icons: {
+      icon: [
+        { url: `${icons}/favicon-32.png`, sizes: "32x32", type: "image/png" },
+        { url: `${icons}/icon-192.png`, sizes: "192x192", type: "image/png" },
+      ],
+      apple: [{ url: `${icons}/apple-touch-icon.png`, sizes: "180x180", type: "image/png" }],
+    },
+    appleWebApp: { capable: true, title: brand.shortName, statusBarStyle: "default" },
+  };
+}
 
-const brandVars = {
-  "--brand-primary": brand.colours.primary,
-  "--brand-primary-dark": brand.colours.primaryDark,
-  "--brand-primary-soft": brand.colours.primarySoft,
-  "--brand-accent": brand.colours.accent,
-  "--brand-background": brand.colours.background,
-  "--brand-surface": brand.colours.surface,
-  "--brand-text": brand.colours.text,
-  "--brand-muted": brand.colours.muted,
-  "--brand-border": brand.colours.border,
-  "--brand-danger": brand.colours.danger,
-} as CSSProperties;
+export async function generateViewport(): Promise<Viewport> {
+  const company = await companyForThisAddress();
+  return { themeColor: company.colours.primary, width: "device-width", initialScale: 1 };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const company = await companyForThisAddress();
   return (
-    // suppressHydrationWarning: a demo company's colours may already be applied by the script below.
-    <html lang="en-GB" style={brandVars} className="h-full antialiased" suppressHydrationWarning>
+    // suppressHydrationWarning: a demo company chosen by ?demo= may already be applied by the script below.
+    <html lang="en-GB" style={colourVars(company.colours) as CSSProperties} className="h-full antialiased" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: earlyColourScript() }} />
       </head>

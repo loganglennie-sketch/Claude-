@@ -16,6 +16,8 @@ export type DemoCompany = {
   logoPath: string;
   iconPath: string;
   logoIncludesName: boolean;
+  /** Folder in /public holding home-screen icons and manifest.webmanifest. */
+  iconSet: string;
   colours: Colours;
   /** Made-up workers shown on the payroll dashboard. */
   team: { id: string; name: string; role: string }[];
@@ -33,6 +35,7 @@ export const DEFAULT_COMPANY: DemoCompany = {
   logoPath: brand.logoPath,
   iconPath: brand.iconPath,
   logoIncludesName: brand.logoIncludesName,
+  iconSet: "/icons/default",
   colours: { ...brand.colours },
   team: [
     { id: "w1", name: "Aaron Mitchell", role: "Joiner" },
@@ -56,6 +59,7 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
     logoPath: "/demo/nicol-logo.png",
     iconPath: "/demo/nicol-icon.png",
     logoIncludesName: true,
+    iconSet: "/icons/nicol",
     colours: {
       primary: "#224596", // blue from the logo
       primaryDark: "#1A3573",
