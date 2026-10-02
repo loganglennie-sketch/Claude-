@@ -12,6 +12,7 @@ import { AddCrewPanel, CrewChangePanel } from "./CrewPanels";
 import { Field, inputClass } from "./fields";
 import { useMyVesselId } from "./RequireVessel";
 import { TripBadge } from "./TripBadge";
+import { TripGrid } from "./TripGrid";
 
 /** One trip: its details and who was on board when. */
 export function TripScreen({ tripId }: { tripId: string }) {
@@ -33,11 +34,14 @@ export function TripScreen({ tripId }: { tripId: string }) {
 }
 
 type Panel = "add" | "change" | null;
+type Tab = "sheet" | "crew";
 
 function TripEditor({ trip }: { trip: Trip }) {
   const { trips, peopleById, vesselsById } = useFleet();
   const router = useRouter();
   const [panel, setPanel] = useState<Panel>(null);
+  // A new trip starts on the crew list; once there's crew, on the daily sheet.
+  const [tab, setTab] = useState<Tab>(trip.crew.length ? "sheet" : "crew");
   const editable = isEditable(trip);
   const today = toISODate(new Date());
   const problems = crewProblems(trip, trips, peopleById, vesselsById);
@@ -54,7 +58,7 @@ function TripEditor({ trip }: { trip: Trip }) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-6 pb-10 pt-6">
+    <div className="mx-auto w-full max-w-screen-2xl flex-1 space-y-4 px-6 pb-10 pt-6">
       <Link href="/vessel" className="text-sm font-semibold text-brand">
         ← All trips
       </Link>
@@ -78,68 +82,101 @@ function TripEditor({ trip }: { trip: Trip }) {
 
       <TripDetails trip={trip} editable={editable} onSave={update} />
 
-      <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold">Crew</h2>
-            <p className="text-sm text-muted">
-              {peopleCount} {peopleCount === 1 ? "person" : "people"} on this trip
-              {today >= trip.mobDate && today <= trip.demobDate && ` · ${crewOnDate(trip, today).length} on board today`}
-            </p>
-          </div>
-          {editable && (
-            <div className="flex gap-2">
-              <PanelButton active={panel === "add"} onClick={() => setPanel(panel === "add" ? null : "add")}>
-                + Add crew
-              </PanelButton>
-              <PanelButton active={panel === "change"} onClick={() => setPanel(panel === "change" ? null : "change")} disabled={trip.crew.length === 0}>
-                ⇄ Crew change
-              </PanelButton>
+      <div role="tablist" className="flex gap-1 border-b-2 border-line">
+        {(
+          [
+            ["sheet", "Daily sheet"],
+            ["crew", `Crew (${peopleCount})`],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`-mb-0.5 border-b-2 px-4 py-2 font-semibold ${tab === id ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`}
+          >
+            {label}
+          </button>
+        ))}
+        {problems.length > 0 && (
+          <button type="button" onClick={() => setTab("crew")} className="ml-auto self-center text-sm font-semibold text-danger">
+            ⚠ {problems.length} crew {problems.length === 1 ? "problem" : "problems"} to fix
+          </button>
+        )}
+      </div>
+
+      {tab === "sheet" && (
+        <Card>
+          <TripGrid trip={trip} editable={editable} />
+        </Card>
+      )}
+
+      {tab === "crew" && (
+        <Card className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">Crew</h2>
+              <p className="text-sm text-muted">
+                {peopleCount} {peopleCount === 1 ? "person" : "people"} on this trip
+                {today >= trip.mobDate && today <= trip.demobDate && ` · ${crewOnDate(trip, today).length} on board today`}
+              </p>
             </div>
+            {editable && (
+              <div className="flex gap-2">
+                <PanelButton active={panel === "add"} onClick={() => setPanel(panel === "add" ? null : "add")}>
+                  + Add crew
+                </PanelButton>
+                <PanelButton active={panel === "change"} onClick={() => setPanel(panel === "change" ? null : "change")} disabled={trip.crew.length === 0}>
+                  ⇄ Crew change
+                </PanelButton>
+              </div>
+            )}
+          </div>
+
+          {panel === "add" && <AddCrewPanel trip={trip} onDone={() => setPanel(null)} />}
+          {panel === "change" && <CrewChangePanel trip={trip} onDone={() => setPanel(null)} />}
+
+          {crew.length === 0 ? (
+            <p className="rounded-xl bg-page p-4 text-center text-muted">No crew yet. Click “Add crew” to pick people from the personnel list.</p>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-muted">
+                <tr className="border-b border-line">
+                  <th className="py-2 pr-3">Name</th>
+                  <th className="px-3 py-2">Rank</th>
+                  <th className="px-3 py-2">Staff / agency</th>
+                  <th className="px-3 py-2">Joined</th>
+                  <th className="px-3 py-2">Left</th>
+                  <th className="px-3 py-2 text-right">Days</th>
+                  <th className="w-1/5 px-3 py-2">On board</th>
+                  {editable && <th className="py-2 pl-3" />}
+                </tr>
+              </thead>
+              <tbody>
+                {crew.map((m) => (
+                  <CrewRow
+                    key={m.id}
+                    trip={trip}
+                    member={m}
+                    editable={editable}
+                    problems={problems.filter((p) => p.crewId === m.id).map((p) => p.message)}
+                    onChange={(patch) => updateMember(m.id, patch)}
+                    onRemove={() => removeMember(m)}
+                  />
+                ))}
+              </tbody>
+            </table>
           )}
-        </div>
-
-        {panel === "add" && <AddCrewPanel trip={trip} onDone={() => setPanel(null)} />}
-        {panel === "change" && <CrewChangePanel trip={trip} onDone={() => setPanel(null)} />}
-
-        {crew.length === 0 ? (
-          <p className="rounded-xl bg-page p-4 text-center text-muted">No crew yet. Click “Add crew” to pick people from the personnel list.</p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted">
-              <tr className="border-b border-line">
-                <th className="py-2 pr-3">Name</th>
-                <th className="px-3 py-2">Rank</th>
-                <th className="px-3 py-2">Staff / agency</th>
-                <th className="px-3 py-2">Joined</th>
-                <th className="px-3 py-2">Left</th>
-                <th className="px-3 py-2 text-right">Days</th>
-                <th className="w-1/5 px-3 py-2">On board</th>
-                {editable && <th className="py-2 pl-3" />}
-              </tr>
-            </thead>
-            <tbody>
-              {crew.map((m) => (
-                <CrewRow
-                  key={m.id}
-                  trip={trip}
-                  member={m}
-                  editable={editable}
-                  problems={problems.filter((p) => p.crewId === m.id).map((p) => p.message)}
-                  onChange={(patch) => updateMember(m.id, patch)}
-                  onRemove={() => removeMember(m)}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-        {editable && (
-          <p className="text-xs text-muted">
-            Each person has their own join and leave date. For a crew change, use “Crew change”: the person leaving and the person joining are both counted on
-            the change day.
-          </p>
-        )}
-      </Card>
+          {editable && (
+            <p className="text-xs text-muted">
+              Each person has their own join and leave date. For a crew change, use “Crew change”: the person leaving and the person joining are both counted on
+              the change day.
+            </p>
+          )}
+        </Card>
+      )}
 
       {trip.status === "in_progress" && (
         <button
