@@ -2,6 +2,8 @@
  * DEMO ONLY: test companies that can be shown from the same app.
  * Open the app with ?demo=<id> (e.g. ?demo=nicol) to switch a device to one;
  * ?demo= (empty) goes back to the normal setup in brand.ts.
+ * A company can also be picked automatically by web address: any address
+ * containing its hostKeyword (e.g. nicolofskene-timesheets.vercel.app) opens as it.
  * The real app for a company uses brand.ts instead of this file.
  */
 import { brand } from "./brand";
@@ -21,6 +23,8 @@ export type DemoCompany = {
   latestStatuses: DemoStatus[];
   /** Job numbers used in the made-up timesheets, and suggested to the demo worker. */
   jobs: string[];
+  /** Web addresses containing this word open as this company. */
+  hostKeyword?: string;
 };
 
 export const DEFAULT_COMPANY: DemoCompany = {
@@ -47,6 +51,7 @@ export const DEFAULT_COMPANY: DemoCompany = {
 export const DEMO_COMPANIES: Record<string, DemoCompany> = {
   nicol: {
     id: "nicol",
+    hostKeyword: "nicol",
     companyName: "Nicol of Skene",
     logoPath: "/demo/nicol-logo.png",
     iconPath: "/demo/nicol-icon.png",
@@ -77,6 +82,12 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
 
 export const findDemoCompany = (id: string | null | undefined): DemoCompany => (id && DEMO_COMPANIES[id]) || DEFAULT_COMPANY;
 
+/** The test company a web address belongs to, if any (e.g. "nicolofskene-timesheets.vercel.app" → "nicol"). */
+export function companyIdForHost(hostname: string): string | null {
+  const host = hostname.toLowerCase();
+  return Object.values(DEMO_COMPANIES).find((c) => c.hostKeyword && host.includes(c.hostKeyword))?.id ?? null;
+}
+
 /** The colour settings as the CSS variables the pages use. */
 export function colourVars(c: Colours): Record<string, string> {
   return {
@@ -102,5 +113,6 @@ export const PRESET_KEY = "timesheets:demo:preset";
  */
 export function earlyColourScript(): string {
   const map = Object.fromEntries(Object.entries(DEMO_COMPANIES).map(([id, c]) => [id, colourVars(c.colours)]));
-  return `try{var v=${JSON.stringify(map)}[localStorage.getItem(${JSON.stringify(PRESET_KEY)})];if(v)for(var k in v)document.documentElement.style.setProperty(k,v[k])}catch(e){}`;
+  const hosts = Object.values(DEMO_COMPANIES).filter((c) => c.hostKeyword).map((c) => [c.hostKeyword, c.id]);
+  return `try{var m=${JSON.stringify(map)},h=${JSON.stringify(hosts)},id=null;try{id=localStorage.getItem(${JSON.stringify(PRESET_KEY)})}catch(e){}if(!id)for(var i=0;i<h.length;i++)if(location.hostname.toLowerCase().indexOf(h[i][0])>-1)id=h[i][1];var v=m[id];if(v)for(var k in v)document.documentElement.style.setProperty(k,v[k])}catch(e){}`;
 }
