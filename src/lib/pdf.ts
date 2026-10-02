@@ -8,7 +8,7 @@ import { dayMinutes, entryMinutes, formatDecimalHours, formatHM, weekTotals } fr
 import type { Timesheet } from "./types";
 import { addDays, formatDayMonth, formatDayName, formatWeekRange } from "./week";
 
-type PdfInput = { companyName: string; workerName: string; sheet: Timesheet };
+type PdfInput = { companyName: string; workerName: string; sheet: Timesheet; colours?: { primary: string; primarySoft: string } };
 
 const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/London" });
 
@@ -17,7 +17,7 @@ function hexToRgb(hex: string) {
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
 
-export async function buildTimesheetPdf({ companyName, workerName, sheet }: PdfInput): Promise<Uint8Array> {
+export async function buildTimesheetPdf({ companyName, workerName, sheet, colours = brand.colours }: PdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Timesheet – ${workerName} – ${formatWeekRange(sheet.weekStart)}`);
   pdf.setAuthor(companyName);
@@ -25,8 +25,8 @@ export async function buildTimesheetPdf({ companyName, workerName, sheet }: PdfI
   let page = pdf.addPage(A4);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const green = hexToRgb(brand.colours.primary);
-  const soft = hexToRgb(brand.colours.primarySoft);
+  const green = hexToRgb(colours.primary);
+  const soft = hexToRgb(colours.primarySoft);
   const ink = rgb(0.12, 0.14, 0.13);
   const muted = rgb(0.4, 0.44, 0.42);
   const line = rgb(0.88, 0.86, 0.82);

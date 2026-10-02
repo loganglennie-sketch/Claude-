@@ -7,6 +7,8 @@
  * device. In the live app all of this comes from the database instead.
  */
 import { useSyncExternalStore } from "react";
+import type { DemoCompany } from "@/config/demo-companies";
+import { useDemoCompany } from "./demo-company";
 import { approveTimesheet as approveOwnTimesheet, useTimesheets } from "./demo-store";
 import type { DayEntry, Timesheet } from "./types";
 import { addDays, currentWeekStart, isoWeekNumber, parseISODate, weekDates } from "./week";
@@ -14,19 +16,8 @@ import { addDays, currentWeekStart, isoWeekNumber, parseISODate, weekDates } fro
 export type PayrollStatus = "not_submitted" | "submitted" | "approved";
 export type PayrollRow = { workerId: string; name: string; role: string; status: PayrollStatus; sheet: Timesheet | null };
 
-const TEAM = [
-  { id: "w1", name: "Aaron Mitchell", role: "Joiner" },
-  { id: "w2", name: "Bethany Clarke", role: "Electrician" },
-  { id: "w3", name: "Callum Reid", role: "Plumber" },
-  { id: "w4", name: "Dev Patel", role: "Apprentice" },
-  { id: "w5", name: "Ewan Fraser", role: "Labourer" },
-  { id: "w6", name: "Grace Thompson", role: "Plasterer" },
-  { id: "w7", name: "Harry Wilson", role: "Site supervisor" },
-  { id: "w8", name: "Jamie O'Neill", role: "Roofer" },
-];
 const DEMO_WORKER = { id: "demo", name: "Demo Worker", role: "You (from the worker app)" };
 
-const JOBS = ["1042", "1051", "1063", "1077", "1088", "1094"];
 
 /** Latest week payroll normally works on: this week from Friday, otherwise last week. */
 export function defaultPayrollWeek(): string {
@@ -49,11 +40,12 @@ function seeded(seed: string) {
 }
 const pick = <T,>(rand: () => number, items: readonly T[]) => items[Math.floor(rand() * items.length)];
 
-function fakeSheet(worker: (typeof TEAM)[number], index: number, weekStart: string): { status: PayrollStatus; sheet: Timesheet | null } {
+function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][number], index: number, weekStart: string): { status: PayrollStatus; sheet: Timesheet | null } {
+  const JOBS = company.jobs;
   const rand = seeded(`${worker.id}:${weekStart}`);
   const latest = weekStart >= defaultPayrollWeek();
   // In the latest week show a realistic mix; older weeks are all signed off.
-  const status: PayrollStatus = !latest ? "approved" : [0, 5].includes(index) ? "approved" : [3, 7].includes(index) ? "not_submitted" : "submitted";
+  const status: PayrollStatus = !latest ? "approved" : (company.latestStatuses[index] ?? "submitted");
   if (status === "not_submitted") return { status, sheet: null };
 
   const mainJob = pick(rand, JOBS);
@@ -192,11 +184,12 @@ export function useRemindedAt(weekStart: string): (workerId: string) => string |
 
 /** Everyone's timesheet for one week, as the payroll team sees it. */
 export function usePayrollWeek(weekStart: string): PayrollRow[] {
+  const company = useDemoCompany();
   const state = usePayrollState();
   const own = useTimesheets()[weekStart];
 
-  const rows: PayrollRow[] = TEAM.map((w, i) => {
-    const { status, sheet } = fakeSheet(w, i, weekStart);
+  const rows: PayrollRow[] = company.team.map((w, i) => {
+    const { status, sheet } = fakeSheet(company, w, i, weekStart);
     const approvedAt = state.approved[keyFor(w.id, weekStart)];
     if (sheet && status === "submitted" && approvedAt) {
       return { workerId: w.id, name: w.name, role: w.role, status: "approved", sheet: { ...sheet, status: "approved", approvedAt } };

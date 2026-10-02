@@ -4,6 +4,7 @@ import { useState } from "react";
 import { blankTimesheet, saveDraft, useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { copyJobs } from "@/lib/jobs";
+import { useDemoCompany } from "@/lib/demo-company";
 import type { DayEntry, Timesheet } from "@/lib/types";
 import { brand } from "@/config/brand";
 import { DayCard } from "./DayCard";
@@ -14,15 +15,16 @@ import { resolveWeekParam } from "@/lib/week-param";
 export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
   const hydrated = useHydrated();
   const store = useTimesheets();
+  const company = useDemoCompany();
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
   // Worked out in the browser so "this week" uses the worker's own clock.
   const weekStart = resolveWeekParam(weekParam);
   const saved = store[weekStart];
-  return <Editor key={weekStart} initial={saved ?? blankTimesheet(weekStart)} jobHistory={collectJobs(store)} />;
+  return <Editor key={weekStart} initial={saved ?? blankTimesheet(weekStart)} jobHistory={collectJobs(store, company.jobs)} />;
 }
 
-function collectJobs(store: Record<string, Timesheet>): string[] {
-  const jobs = new Set<string>();
+function collectJobs(store: Record<string, Timesheet>, demoJobs: string[]): string[] {
+  const jobs = new Set<string>(demoJobs);
   Object.values(store).forEach((s) => s.days.forEach((d) => d.jobs.forEach((j) => j.jobNumber.trim() && jobs.add(j.jobNumber.trim().toUpperCase()))));
   return [...jobs].sort();
 }

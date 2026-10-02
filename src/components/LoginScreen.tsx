@@ -2,9 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { brand } from "@/config/brand";
 import { DEMO_LOGINS, signIn, useWorker } from "@/lib/demo-auth";
-import { useCompanyName } from "@/lib/demo-company";
+import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { Button } from "./ui";
 
 export const PIN_LENGTH = 4;
@@ -13,8 +12,9 @@ export function LoginScreen() {
   const router = useRouter();
   const worker = useWorker();
   const companyName = useCompanyName();
+  const company = useDemoCompany();
   // A logo with the name built in replaces the heading, unless a demo link has swapped the name.
-  const showFullLogo = brand.logoIncludesName && companyName === brand.companyName;
+  const showFullLogo = company.logoIncludesName && companyName === company.companyName;
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +37,9 @@ export function LoginScreen() {
       <div className="mb-8 text-center">
         {/* eslint-disable @next/next/no-img-element -- small logo files, no resizing needed */}
         {showFullLogo ? (
-          <img src={brand.logoPath} alt="" className="mx-auto max-h-36 w-full max-w-72 object-contain" />
+          <img src={company.logoPath} alt="" className="mx-auto max-h-36 w-full max-w-72 object-contain" />
         ) : (
-          <img src={brand.iconPath} alt="" width={72} height={72} className="mx-auto h-18 w-18 rounded-2xl object-contain" />
+          <img src={company.iconPath} alt="" width={72} height={72} className="mx-auto h-18 w-18 rounded-2xl object-contain" />
         )}
         {/* eslint-enable @next/next/no-img-element */}
         <h1 className={showFullLogo ? "sr-only" : "mt-4 text-2xl font-bold"}>{companyName}</h1>

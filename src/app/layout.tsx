@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { brand } from "@/config/brand";
+import { earlyColourScript } from "@/config/demo-companies";
 import { CompanyFromLink } from "@/lib/demo-company";
 import "./globals.css";
 
@@ -30,7 +31,11 @@ const brandVars = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-GB" style={brandVars} className="h-full antialiased">
+    // suppressHydrationWarning: a demo company's colours may already be applied by the script below.
+    <html lang="en-GB" style={brandVars} className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: earlyColourScript() }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <CompanyFromLink />
         {children}

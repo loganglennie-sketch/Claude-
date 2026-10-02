@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { brand } from "@/config/brand";
-import { useCompanyName } from "@/lib/demo-company";
+import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { approve, defaultPayrollWeek, markReminded, usePayrollWeek, useRemindedAt, type PayrollRow } from "@/lib/demo-payroll";
 import { useHydrated } from "@/lib/demo-store";
 import { downloadFile } from "@/lib/download";
@@ -33,6 +33,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
   const rows = usePayrollWeek(weekStart);
   const remindedAt = useRemindedAt(weekStart);
   const companyName = useCompanyName();
+  const { colours } = useDemoCompany();
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -79,13 +80,13 @@ function Dashboard({ weekStart }: { weekStart: string }) {
         const [{ buildTimesheetPdf, pdfFileName }, { PDFDocument }] = await Promise.all([import("@/lib/pdf"), import("pdf-lib")]);
         if (withSheets.length === 1) {
           const r = withSheets[0];
-          const bytes = await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet! });
+          const bytes = await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours });
           downloadFile(bytes as BlobPart, pdfFileName(r.name, weekStart), "application/pdf");
         } else {
           // One file with a page per worker, so the browser doesn't block lots of downloads.
           const combined = await PDFDocument.create();
           for (const r of withSheets) {
-            const doc = await PDFDocument.load(await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet! }));
+            const doc = await PDFDocument.load(await buildTimesheetPdf({ companyName, workerName: r.name, sheet: r.sheet!, colours }));
             (await combined.copyPages(doc, doc.getPageIndices())).forEach((p) => combined.addPage(p));
           }
           downloadFile((await combined.save()) as BlobPart, `timesheets-${weekStart}.pdf`, "application/pdf");
@@ -94,7 +95,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
         setBusy(false);
       }
     },
-    [companyName, weekStart],
+    [companyName, weekStart, colours],
   );
 
   async function downloadExcel() {
@@ -102,7 +103,7 @@ function Dashboard({ weekStart }: { weekStart: string }) {
     try {
       const { buildWeekWorkbook, workbookFileName } = await import("@/lib/excel");
       const status = (r: PayrollRow) => (r.status === "approved" ? "Approved" : r.status === "submitted" ? "Submitted" : "Not submitted");
-      const bytes = await buildWeekWorkbook(weekStart, rows.map((r) => ({ name: r.name, status: status(r), sheet: r.sheet })), companyName);
+      const bytes = await buildWeekWorkbook(weekStart, rows.map((r) => ({ name: r.name, status: status(r), sheet: r.sheet })), companyName, colours);
       downloadFile(bytes, workbookFileName(companyName, weekStart), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       flash(`Excel downloaded for ${formatWeekRange(weekStart)}.`);
     } finally {

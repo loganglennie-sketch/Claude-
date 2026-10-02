@@ -14,6 +14,8 @@ The demo uses the generic name "Your Company". To show a business its own name, 
 
 (`%20` means a space.) The name is remembered on that device. Open `/?company=` to go back to the default.
 
+**Test companies:** `/?demo=nicol` switches a device to the Nicol of Skene test company (their logo and colours, 5 test workers, their own job numbers). `/?demo=` switches back. Test companies are set up in [`src/config/demo-companies.ts`](src/config/demo-companies.ts).
+
 ## Build stages
 
 | Stage | What you get | Accounts needed |

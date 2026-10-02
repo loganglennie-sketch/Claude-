@@ -23,7 +23,12 @@ const excelDate = (iso: string) => {
 const jobCell = (job: string) => (/^[1-9]\d{0,14}$/.test(job) ? Number(job) : job);
 const byJob = (a: string, b: string) => a.localeCompare(b, "en-GB", { numeric: true });
 
-export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], companyName: string): Promise<ArrayBuffer> {
+export async function buildWeekWorkbook(
+  weekStart: string,
+  rows: ExportRow[],
+  companyName: string,
+  colours: { primary: string; primarySoft: string } = brand.colours,
+): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = companyName;
   wb.created = new Date();
@@ -35,14 +40,14 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
   const header = (ws: ExcelJS.Worksheet, labels: string[]) => {
     const row = ws.addRow(labels);
     row.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(brand.colours.primary) } };
+    row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(colours.primary) } };
     row.alignment = { vertical: "middle" };
     row.height = 20;
     ws.views = [{ state: "frozen", ySplit: 1 }];
   };
   const totalStyle = (row: ExcelJS.Row) => {
     row.font = { bold: true };
-    row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(brand.colours.primarySoft) } };
+    row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(colours.primarySoft) } };
   };
   const col = (n: number) => String.fromCharCode(64 + n); // 1 → A (enough for these sheets)
   /** Adds up a column so totals show even in viewers that don't recalculate formulas. */
@@ -110,7 +115,7 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
     const all = byJobSheet.addRow(["All jobs", `${jobTotalRows.length} job numbers`]);
     for (let c = 3; c <= 10; c++) all.getCell(c).value = { formula: jobTotalRows.map((n) => `${col(c)}${n}`).join("+"), result: sumOf(byJobSheet, c, jobTotalRows) };
     all.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    all.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(brand.colours.primary) } };
+    all.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(colours.primary) } };
   } else {
     byJobSheet.addRow(["No submitted timesheets for this week yet"]);
   }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { brand } from "@/config/brand";
 import { useWorker } from "@/lib/demo-auth";
-import { useCompanyName } from "@/lib/demo-company";
+import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { downloadFile } from "@/lib/download";
 import { useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
@@ -18,6 +18,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
   const store = useTimesheets();
   const worker = useWorker();
   const companyName = useCompanyName();
+  const { colours } = useDemoCompany();
   const [busy, setBusy] = useState(false);
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
@@ -38,7 +39,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
     try {
       const { buildTimesheetPdf, pdfFileName } = await import("@/lib/pdf");
       const name = worker?.name ?? "Worker";
-      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet });
+      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet, colours });
       downloadFile(bytes as BlobPart, pdfFileName(name, sheet.weekStart), "application/pdf");
     } finally {
       setBusy(false);
