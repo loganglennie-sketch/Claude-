@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { blankTimesheet, saveDraft, useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
-import { copyJobs } from "@/lib/jobs";
+import { copyJobs, withTimesForEveryEntry } from "@/lib/jobs";
 import { useDemoCompany } from "@/lib/demo-company";
 import type { DayEntry, Timesheet } from "@/lib/types";
 import { brand } from "@/config/brand";
@@ -20,7 +20,16 @@ export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
   // Worked out in the browser so "this week" uses the worker's own clock.
   const weekStart = resolveWeekParam(weekParam);
   const saved = store[weekStart];
-  return <Editor key={weekStart} initial={saved ?? blankTimesheet(weekStart)} jobHistory={collectJobs(store, company.jobs)} />;
+  const timesOnly = company.entryMode === "times";
+  const initial = saved ?? blankTimesheet(weekStart);
+  return (
+    <Editor
+      key={`${weekStart}-${company.entryMode}`}
+      initial={timesOnly ? withTimesForEveryEntry(initial) : initial}
+      jobHistory={collectJobs(store, company.jobs)}
+      timesOnly={timesOnly}
+    />
+  );
 }
 
 function collectJobs(store: Record<string, Timesheet>, demoJobs: string[]): string[] {
@@ -29,7 +38,7 @@ function collectJobs(store: Record<string, Timesheet>, demoJobs: string[]): stri
   return [...jobs].sort();
 }
 
-function Editor({ initial, jobHistory }: { initial: Timesheet; jobHistory: string[] }) {
+function Editor({ initial, jobHistory, timesOnly }: { initial: Timesheet; jobHistory: string[]; timesOnly: boolean }) {
   const [sheet, setSheet] = useState(initial);
   const locked = sheet.status !== "draft";
   const totals = weekTotals(sheet.days);
@@ -79,6 +88,7 @@ function Editor({ initial, jobHistory }: { initial: Timesheet; jobHistory: strin
             jobSuggestionsId={suggestionsId}
             onChange={(patch) => patchDay(i, patch)}
             onCopyPrevious={i > 0 ? () => copyPrevious(i) : undefined}
+            timesOnly={timesOnly}
           />
         ))}
       </div>

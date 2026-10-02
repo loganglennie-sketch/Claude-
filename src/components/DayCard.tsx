@@ -2,6 +2,7 @@
 
 import { dayMinutes, entryMinutes, formatHM, minutesToHoursText, parseHours } from "@/lib/hours";
 import { newJobEntry } from "@/lib/jobs";
+import { TimeInput } from "./TimeInput";
 import type { DayEntry, JobEntry } from "@/lib/types";
 import { formatDayMonth, formatDayName, toISODate } from "@/lib/week";
 
@@ -14,9 +15,12 @@ type Props = {
   jobSuggestionsId: string;
   onChange: (patch: Partial<DayEntry>) => void;
   onCopyPrevious?: () => void;
+  /** Company records start and finish times for every job (no "type the hours" option). */
+  timesOnly?: boolean;
 };
 
-export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious }: Props) {
+export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious, timesOnly = false }: Props) {
+  const blankEntry = () => newJobEntry(timesOnly ? { mode: "times" } : {});
   const { minutes } = dayMinutes(day);
   const isToday = day.date === toISODate(new Date());
   const labelId = `day-${day.date}`;
@@ -25,7 +29,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
   const setJobs = (jobs: JobEntry[]) => onChange({ jobs });
   const patchJob = (id: string, patch: Partial<JobEntry>) => setJobs(day.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   const removeJob = (id: string) => setJobs(day.jobs.filter((j) => j.id !== id));
-  const addJob = () => setJobs([...day.jobs, newJobEntry()]);
+  const addJob = () => setJobs([...day.jobs, blankEntry()]);
 
   return (
     <section
@@ -58,7 +62,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
               type="button"
               role="radio"
               aria-checked={day.worked === opt.value}
-              onClick={() => onChange(opt.value && day.jobs.length === 0 ? { worked: true, jobs: [newJobEntry()] } : { worked: opt.value })}
+              onClick={() => onChange(opt.value && day.jobs.length === 0 ? { worked: true, jobs: [blankEntry()] } : { worked: opt.value })}
               className={`min-h-12 rounded-lg text-base font-semibold transition ${
                 day.worked === opt.value ? "bg-surface text-brand shadow-sm" : "text-muted"
               }`}
@@ -81,6 +85,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
                 index={i}
                 dayName={dayName}
                 jobSuggestionsId={jobSuggestionsId}
+                timesOnly={timesOnly}
                 onChange={(patch) => patchJob(entry.id, patch)}
                 onRemove={() => removeJob(entry.id)}
               />
@@ -122,11 +127,12 @@ type EditorProps = {
   index: number;
   dayName: string;
   jobSuggestionsId: string;
+  timesOnly: boolean;
   onChange: (patch: Partial<JobEntry>) => void;
   onRemove: () => void;
 };
 
-function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, onChange, onRemove }: EditorProps) {
+function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, onChange, onRemove }: EditorProps) {
   const { minutes, error } = entryMinutes(entry);
   const touched = !!(entry.jobNumber || entry.hours || entry.start || entry.finish);
   const label = `${dayName} job ${index + 1}`;
@@ -207,11 +213,13 @@ function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, onChange, onR
       {entry.mode === "times" && (
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <TimeField label="Start" value={entry.start} onChange={(start) => onChange({ start })} />
-            <TimeField label="Finish" value={entry.finish} onChange={(finish) => onChange({ finish })} />
+            <TimeInput label="Start" value={entry.start} onChange={(start) => onChange({ start })} />
+            <TimeInput label="Finish" value={entry.finish} onChange={(finish) => onChange({ finish })} />
           </div>
           <fieldset>
-            <legend className="mb-1.5 text-sm font-medium text-muted">Break (minutes)</legend>
+            <legend className="mb-1.5 text-sm font-medium text-muted">
+              Break <span className="font-normal">(minutes, if any)</span>
+            </legend>
             <div className="flex flex-wrap gap-2">
               {BREAK_CHOICES.map((mins) => (
                 <button
@@ -231,12 +239,14 @@ function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, onChange, onR
         </div>
       )}
 
-      <button type="button" onClick={switchMode} className="mt-2 min-h-10 text-sm font-semibold text-brand underline-offset-4 hover:underline">
-        {entry.mode === "hours" ? "Use start & finish times instead" : "Type the hours instead"}
-      </button>
+      {!timesOnly && (
+        <button type="button" onClick={switchMode} className="mt-2 min-h-10 text-sm font-semibold text-brand underline-offset-4 hover:underline">
+          {entry.mode === "hours" ? "Use start & finish times instead" : "Type the hours instead"}
+        </button>
+      )}
 
       {error && touched && (
-        <p role="alert" className="text-sm font-medium text-danger">
+        <p role="alert" className="mt-2 text-sm font-medium text-danger">
           {error}
         </p>
       )}
@@ -257,20 +267,5 @@ function ReadOnlyEntry({ entry }: { entry: JobEntry }) {
       )}
       <span className="ml-auto font-semibold tabular-nums">{formatHM(minutes)}</span>
     </div>
-  );
-}
-
-function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
-      <input
-        type="time"
-        step={300}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-13 w-full rounded-xl border-2 border-line bg-surface px-3 text-lg tabular-nums focus:border-brand focus:outline-none"
-      />
-    </label>
   );
 }

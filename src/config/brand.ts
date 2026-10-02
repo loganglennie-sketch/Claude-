@@ -5,6 +5,14 @@
  *  up for a different business. Everything else reads from here.
  * ─────────────────────────────────────────────────────────────
  */
+
+/**
+ * How workers record each job:
+ *  "times"          – start and finish time for every job (hours worked out from them)
+ *  "hours-or-times" – type the hours, or switch to start and finish times
+ */
+export type EntryMode = "times" | "hours-or-times";
+
 export const brand = {
   /** Full company name, shown in headers, emails and PDFs. */
   companyName: "Your Company",
@@ -42,6 +50,9 @@ export const brand = {
 
   /** Inbox that receives every signed timesheet PDF. */
   payrollEmail: "payroll@example.co.uk",
+
+  /** How workers record each job (see EntryMode above). */
+  entryMode: "hours-or-times" as EntryMode,
 
   /** Weekly hours after which time counts as overtime. */
   overtimeThresholdHours: 40,

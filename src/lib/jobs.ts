@@ -33,3 +33,12 @@ export function normaliseTimesheet(sheet: Timesheet): Timesheet {
     }),
   };
 }
+
+/**
+ * For companies that record start and finish times only: makes sure every
+ * entry in a timesheet still being filled in uses times.
+ */
+export function withTimesForEveryEntry(sheet: Timesheet): Timesheet {
+  if (sheet.status !== "draft" || sheet.days.every((d) => d.jobs.every((j) => j.mode === "times"))) return sheet;
+  return { ...sheet, days: sheet.days.map((d) => ({ ...d, jobs: d.jobs.map((j) => (j.mode === "times" ? j : { ...j, mode: "times" as const })) })) };
+}

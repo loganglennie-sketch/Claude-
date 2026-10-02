@@ -6,7 +6,7 @@
  * containing its hostKeyword (e.g. nicolofskene-timesheets.vercel.app) opens as it.
  * The real app for a company uses brand.ts instead of this file.
  */
-import { brand } from "./brand";
+import { brand, type EntryMode } from "./brand";
 
 export type Colours = Record<keyof typeof brand.colours, string>;
 export type DemoStatus = "approved" | "submitted" | "not_submitted";
@@ -16,6 +16,8 @@ export type DemoCompany = {
   logoPath: string;
   iconPath: string;
   logoIncludesName: boolean;
+  /** How workers record each job (see EntryMode in brand.ts). */
+  entryMode: EntryMode;
   /** Folder in /public holding home-screen icons and manifest.webmanifest. */
   iconSet: string;
   colours: Colours;
@@ -35,6 +37,7 @@ export const DEFAULT_COMPANY: DemoCompany = {
   logoPath: brand.logoPath,
   iconPath: brand.iconPath,
   logoIncludesName: brand.logoIncludesName,
+  entryMode: brand.entryMode,
   iconSet: "/icons/default",
   colours: { ...brand.colours },
   team: [
@@ -59,6 +62,8 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
     logoPath: "/demo/nicol-logo.png",
     iconPath: "/demo/nicol-icon.png",
     logoIncludesName: true,
+    // Pay depends on when work was done (day, evening, night, weekend), so every job needs clock times.
+    entryMode: "times",
     iconSet: "/icons/nicol",
     colours: {
       primary: "#224596", // blue from the logo

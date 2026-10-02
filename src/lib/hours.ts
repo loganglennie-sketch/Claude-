@@ -1,10 +1,21 @@
 import { brand } from "@/config/brand";
 import type { DayEntry, JobEntry } from "./types";
 
+/** "07:30" → 450. Only accepts real 24-hour times (00:00–23:59). */
 export function timeToMinutes(t: string): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t);
-  if (!m) return null;
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
   return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Tidies what a worker typed into "HH:MM": "730" → "07:30", "19.45" → "19:45", "7" → "07:00". */
+export function normaliseTime(text: string): string | null {
+  const t = text.trim().replace(/\s/g, "");
+  const m = /^(\d{1,2})(?:[:.h]?(\d{2}))?$/.exec(t.length === 3 && /^\d+$/.test(t) ? `0${t}` : t);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  return h <= 23 && min <= 59 ? `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}` : null;
 }
 
 /** Reads typed hours: "3", "3.5", "3,5", "3:30" or "3h30" → minutes. */
@@ -38,9 +49,10 @@ export function entryMinutes(entry: JobEntry): Result {
     if (parsed <= 0) return { minutes: 0, error: "Hours must be more than 0" };
     minutes = parsed;
   } else {
+    if (!entry.start || !entry.finish) return { minutes: 0, error: "Add a start and finish time" };
     const start = timeToMinutes(entry.start);
     const finish = timeToMinutes(entry.finish);
-    if (start === null || finish === null) return { minutes: 0, error: "Add a start and finish time" };
+    if (start === null || finish === null) return { minutes: 0, error: "Use the 24-hour clock, like 07:30 or 19:45" };
     if (finish <= start) return { minutes: 0, error: "Finish time must be after start time" };
     minutes = finish - start - Math.max(0, entry.breakMins || 0);
     if (minutes <= 0) return { minutes: 0, error: "Break is longer than the time worked" };

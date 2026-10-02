@@ -7,12 +7,15 @@ import { blankTimesheet, submitTimesheet, useHydrated, useTimesheets } from "@/l
 import { dayMinutes, entryMinutes, formatHM, weekTotals } from "@/lib/hours";
 import { formatDayMonth, formatShortDay, formatWeekRange } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
+import { useDemoCompany } from "@/lib/demo-company";
+import { withTimesForEveryEntry } from "@/lib/jobs";
 import { SignaturePad } from "./SignaturePad";
 import { Button, ButtonLink, Card } from "./ui";
 
 export function ReviewScreen({ weekParam }: { weekParam?: string }) {
   const hydrated = useHydrated();
   const store = useTimesheets();
+  const company = useDemoCompany();
   const router = useRouter();
   const [declared, setDeclared] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
@@ -20,7 +23,8 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const weekStart = resolveWeekParam(weekParam);
-  const sheet = store[weekStart] ?? blankTimesheet(weekStart);
+  const stored = store[weekStart] ?? blankTimesheet(weekStart);
+  const sheet = company.entryMode === "times" ? withTimesForEveryEntry(stored) : stored;
   const totals = weekTotals(sheet.days);
   const alreadySubmitted = sheet.status !== "draft";
   const hasProblems = totals.errors.length > 0 || totals.daysWorked === 0;
