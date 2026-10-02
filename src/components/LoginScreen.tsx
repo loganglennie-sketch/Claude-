@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DEMO_LOGINS, signIn, useWorker } from "@/lib/demo-auth";
+import { demoLogins, homePath, signIn, useWorker } from "@/lib/demo-auth";
 import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { Button } from "./ui";
 
@@ -15,17 +15,18 @@ export function LoginScreen() {
   const company = useDemoCompany();
   // A logo with the name built in replaces the heading, unless a demo link has swapped the name.
   const showFullLogo = company.logoIncludesName && companyName === company.companyName;
+  const vessel = company.mode === "vessel";
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (worker) router.replace(worker.payroll ? "/payroll" : "/timesheet");
-  }, [worker, router]);
+    if (worker) router.replace(homePath(worker, company.mode));
+  }, [worker, router, company.mode]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const result = signIn(name, pin);
+    const result = signIn(name, pin, company.mode);
     if (!result.ok) {
       setError(result.error);
       setPin("");
@@ -43,19 +44,19 @@ export function LoginScreen() {
         )}
         {/* eslint-enable @next/next/no-img-element */}
         <h1 className={showFullLogo ? "sr-only" : "mt-4 text-2xl font-bold"}>{companyName}</h1>
-        <p className="text-muted">Sign in to fill in your timesheet</p>
+        <p className="text-muted">{vessel ? "Sign in with your vessel or your own name" : "Sign in to fill in your timesheet"}</p>
       </div>
 
       <form onSubmit={submit} className="space-y-5">
         <label className="block">
-          <span className="mb-1.5 block font-medium">Your name</span>
+          <span className="mb-1.5 block font-medium">{vessel ? "Vessel or your name" : "Your name"}</span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoComplete="username"
             autoCapitalize="words"
-            placeholder="First and last name"
+            placeholder={vessel ? "e.g. Northern Star" : "First and last name"}
             required
             className="min-h-14 w-full rounded-xl border-2 border-line bg-surface px-4 text-lg placeholder:text-muted/60 focus:border-brand focus:outline-none"
           />
@@ -91,9 +92,9 @@ export function LoginScreen() {
       <p className="mt-6 text-center text-sm text-muted">Forgotten your PIN? Ask the office to reset it.</p>
       <div className="mt-6 space-y-1 rounded-xl bg-brand-soft p-3 text-center text-sm text-brand-dark">
         <div className="font-semibold">Try the demo</div>
-        {DEMO_LOGINS.map((l) => (
+        {demoLogins(company.mode).map((l) => (
           <div key={l.name}>
-            {l.payroll ? "Office / payroll" : "Worker"}: <strong>{l.name}</strong>, PIN <strong>{l.pin}</strong>
+            {l.vesselId ? "Vessel" : l.payroll ? (vessel ? "Office" : "Office / payroll") : "Worker"}: <strong>{l.name}</strong>, PIN <strong>{l.pin}</strong>
           </div>
         ))}
       </div>

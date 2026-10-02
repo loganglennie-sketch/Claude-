@@ -27,6 +27,27 @@ The demo uses the generic name "Your Company". To show a business its own name, 
 | 5. Admin & PWA | Add/remove workers, set/reset PINs, payroll access. **Home-screen icons done ✅** (per company: `public/icons/<company>/`). | — |
 | 6. Go live | Hosted on Vercel with your web address. | Vercel |
 
+## Vessel mode (marine companies)
+
+For companies with a fleet: one person on each vessel fills in a **trip sheet** for everyone on board, the master signs it at the end of the trip, and the office approves it. Used on a computer (desktop/laptop), not a phone.
+
+**Structure:** Company → Vessels → Trips (vessel, mob date, demob date, client, job number) → Crew on that trip (each with their own join and leave dates). One company-wide personnel list (name, rank, staff or agency).
+
+**Try it:** open `/?demo=marine` (North Sea Marine: 3 vessels, 25 personnel, 9 trips). Any web address containing `marine` opens it automatically. Logins:
+- Vessels: **Northern Star / 1111**, **Sea Venture / 2222**, **Ocean Pioneer / 3333** (Ocean Pioneer is alongside, so you can start a new trip there)
+- Office: **Office Demo / 0000**
+
+To set a real company up in vessel mode, set `appMode: "vessel"` in [`src/config/brand.ts`](src/config/brand.ts). Shift types (day, night, travel, standby, sick, off), default hours and ranks are in [`src/config/vessel.ts`](src/config/vessel.ts) – that's where the columns from the company's current Excel sheet get matched.
+
+| Stage | What you get |
+| --- | --- |
+| **1. Structure, crew & demo fleet** ✅ | Vessel sign-in, start a trip (copy crew from the last trip or start empty), add crew from the personnel list, crew changes mid-trip (join/leave dates per person), clash checks (dates outside the trip, someone already on another vessel), demo fleet. Office: read-only fleet overview and personnel list. |
+| 2. Daily grid | Crew × days grid, pre-filled with the default (12h day shift, travel on join/leave days), change any cell: day, night, travel, standby, sick, off, hours. Columns matched to the company's spreadsheet. |
+| 3. Sign, submit & offline | Master reviews, signs on screen and submits. Everything saves on the computer and syncs when there's a connection, with a clear "synced / waiting to sync" indicator. |
+| 4. Office dashboard | Fleet dashboard (current trip and who's on board for every vessel, sheets waiting for approval), approve, or query a specific line with a comment that goes back to the vessel. Approved trips are locked. |
+| 5. PDFs, exports & personnel | Signed PDF of each trip sheet. Excel exports: payroll (hours/days per person per trip) and invoicing (by vessel, trip and job number). Office adds/edits personnel and imports the list from Excel. |
+| 6. Accounts, database & go live | Same as the trade app: Supabase sign-in and storage, real syncing between vessels and office, hosted on Vercel. |
+
 ## Running it on your own computer
 
 1. Install [Node.js](https://nodejs.org) (the "LTS" version).

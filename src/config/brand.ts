@@ -13,7 +13,17 @@
  */
 export type EntryMode = "times" | "hours-or-times";
 
+/**
+ * Which app this company gets:
+ *  "trade"  – each worker fills in their own weekly timesheet
+ *  "vessel" – one person on each vessel fills in a trip sheet for everyone on board
+ *             (settings in src/config/vessel.ts)
+ */
+export type AppMode = "trade" | "vessel";
+
 export const brand = {
+  /** Which app this company gets (see AppMode above). */
+  appMode: "trade" as AppMode,
   /** Full company name, shown in headers, emails and PDFs. */
   companyName: "Your Company",
   /** Short name shown under the app icon on a phone's home screen (max ~12 characters). */

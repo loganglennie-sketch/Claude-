@@ -6,12 +6,14 @@
  * containing its hostKeyword (e.g. nicolofskene-timesheets.vercel.app) opens as it.
  * The real app for a company uses brand.ts instead of this file.
  */
-import { brand, type EntryMode } from "./brand";
+import { brand, type AppMode, type EntryMode } from "./brand";
 
 export type Colours = Record<keyof typeof brand.colours, string>;
 export type DemoStatus = "approved" | "submitted" | "not_submitted";
 export type DemoCompany = {
   id: string;
+  /** Trade (weekly timesheets per worker) or vessel (trip sheets per vessel). */
+  mode: AppMode;
   companyName: string;
   logoPath: string;
   iconPath: string;
@@ -35,6 +37,7 @@ export type DemoCompany = {
 
 export const DEFAULT_COMPANY: DemoCompany = {
   id: "default",
+  mode: brand.appMode,
   companyName: brand.companyName,
   logoPath: brand.logoPath,
   iconPath: brand.iconPath,
@@ -60,6 +63,7 @@ export const DEFAULT_COMPANY: DemoCompany = {
 export const DEMO_COMPANIES: Record<string, DemoCompany> = {
   nicol: {
     id: "nicol",
+    mode: "trade",
     hostKeyword: "nicol",
     companyName: "Nicol of Skene",
     logoPath: "/demo/nicol-logo.png",
@@ -91,6 +95,34 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
     ],
     latestStatuses: ["approved", "submitted", "submitted", "not_submitted", "submitted"],
     jobs: ["3105", "3112", "3118", "3124", "3131", "3137"],
+  },
+  // Vessel mode: trip sheets filled in on board for everyone (fleet in src/lib/vessel/demo-data.ts).
+  marine: {
+    id: "marine",
+    mode: "vessel",
+    hostKeyword: "marine",
+    companyName: "North Sea Marine",
+    logoPath: "/demo/marine-icon.svg",
+    iconPath: "/demo/marine-icon.svg",
+    logoIncludesName: false,
+    entryMode: "hours-or-times",
+    showOvertime: false,
+    iconSet: "/icons/default",
+    colours: {
+      primary: "#123B5E", // navy
+      primaryDark: "#0C2A44",
+      accent: "#1C8C9C", // sea teal
+      primarySoft: "#E2ECF4",
+      background: "#F5F7FA",
+      surface: "#FFFFFF",
+      text: "#15202B",
+      muted: "#5B6775",
+      border: "#DCE3EB",
+      danger: "#B3261E",
+    },
+    team: [],
+    latestStatuses: [],
+    jobs: [],
   },
 };
 

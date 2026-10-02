@@ -27,7 +27,7 @@ export function defaultPayrollWeek(): string {
 }
 
 // Small repeatable random-number generator so demo data is stable.
-function seeded(seed: string) {
+export function seeded(seed: string) {
   let h = 1779033703 ^ seed.length;
   for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353) >>> 0;
   return () => {
@@ -80,7 +80,8 @@ function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][number], in
 }
 
 /** A squiggle that looks enough like a signature, inside a 300×90 box. */
-function fakeSignature(name: string, rand: () => number): string {
+/** A made-up handwritten signature as an SVG path (300×90 box). */
+export function fakeSignature(name: string, rand: () => number): string {
   let x = 18;
   let d = `M ${x} ${55 + rand() * 10}`;
   for (const ch of name.replace(/[^a-z]/gi, "").slice(0, 12)) {
