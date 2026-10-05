@@ -46,10 +46,11 @@ function chosenId(): string | null {
 export function useDemoCompany(): DemoCompany {
   const { live, company: liveCompany } = useAppMode();
   const demo = findDemoCompany(useSyncExternalStore(subscribe, chosenId, () => null));
+  const byAddress = useSyncExternalStore(subscribe, () => companyIdForHost(window.location.hostname), () => null);
   if (!live || !liveCompany) return demo;
-  // Live: branding from the company's look (by its short code); name and rules from the database.
-  // No made-up team or job numbers.
-  const look = findDemoCompany(liveCompany.slug);
+  // Live: branding from the company's look (by its short name, or failing that its web
+  // address); name and rules from the database. No made-up team or job numbers.
+  const look = DEMO_COMPANIES[liveCompany.slug] ?? findDemoCompany(byAddress);
   return {
     ...look,
     companyName: liveCompany.name,
@@ -84,7 +85,7 @@ export function CompanyFromLink() {
   useEffect(() => {
     // Live addresses always show their own company; demo links are ignored there.
     if (live && company) {
-      applyColours(findDemoCompany(company.slug));
+      applyColours(DEMO_COMPANIES[company.slug] ?? findDemoCompany(companyIdForHost(window.location.hostname)));
       return;
     }
     const params = new URLSearchParams(window.location.search);

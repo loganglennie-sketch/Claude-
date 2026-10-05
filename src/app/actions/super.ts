@@ -3,7 +3,7 @@
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { brand } from "@/config/brand";
-import { DEFAULT_COMPANY, DEMO_COMPANIES } from "@/config/demo-companies";
+import { companyIdForHost, DEFAULT_COMPANY, DEMO_COMPANIES } from "@/config/demo-companies";
 import { defaultPayrollWeek, fakeSheet } from "@/lib/demo-generator";
 import { weekTotals } from "@/lib/hours";
 import { forgetCompanies, getLiveUser } from "@/lib/live/context";
@@ -135,13 +135,15 @@ const SAMPLE_WEEKS = 6;
 export async function loadSampleData(companyId: string): Promise<ActionResult> {
   const me = await requireSuperAdmin();
   const admin = createServerAdminClient();
-  const { data: company } = await admin.from("companies").select("id, name, slug, entry_mode, is_test").eq("id", companyId).maybeSingle();
+  const { data: company } = await admin.from("companies").select("id, name, slug, entry_mode, is_test, host_keywords").eq("id", companyId).maybeSingle();
   if (!company) return fail("Company not found.");
   if (!company.is_test) return fail("Sample data can only go into a test company.");
   const { count } = await admin.from("users").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("role", "worker");
   if (count) return fail("This company already has workers, so no sample data was added.");
 
-  const template = DEMO_COMPANIES[company.slug] ?? DEFAULT_COMPANY;
+  // The company's look by short name, or failing that by its web address word (e.g. "nicol-live" → Nicol).
+  const byAddress = (company.host_keywords as string[]).map(companyIdForHost).find(Boolean);
+  const template = DEMO_COMPANIES[company.slug] ?? (byAddress ? DEMO_COMPANIES[byAddress] : undefined) ?? DEFAULT_COMPANY;
   const config = { ...template, entryMode: company.entry_mode };
   const latest = defaultPayrollWeek();
   const weeks = Array.from({ length: SAMPLE_WEEKS }, (_, i) => addDays(latest, -7 * (SAMPLE_WEEKS - 1 - i)));
