@@ -27,3 +27,14 @@ checked function. Nothing is ever deleted. 5 wrong PINs lock an account for 15 m
 ## Testing locally
 `tests/security-tests.sql` (69 checks), `tests/form-fields-tests.sql` (9) and `tests/choose-pin-tests.sql` (19) run on a
 plain Postgres after `tests/local-supabase-stub.sql` and the migrations.
+
+## Writing a new database update
+End every script that changes a table with:
+
+```sql
+select pg_terminate_backend(pid) from pg_stat_activity where usename = 'authenticator' and pid <> pg_backend_pid();
+```
+
+The app keeps database connections open, and after a table change they can still use the old layout
+(seen on PostgreSQL 17: saving a timesheet failed with "null value in column company_id"). Closing them
+makes the app reconnect straight away; nobody is signed out.

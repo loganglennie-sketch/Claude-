@@ -134,3 +134,7 @@ revoke execute on function public.submit_timesheet(date, text, text, text, text)
 grant execute on function public.submit_timesheet(date, text, text, text, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- The app's open database connections remember the old table layout after a
+-- change like the one above; close them so it reconnects with the new one.
+select pg_terminate_backend(pid) from pg_stat_activity where usename = 'authenticator' and pid <> pg_backend_pid();
