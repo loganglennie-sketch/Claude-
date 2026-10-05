@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { blankTimesheet, saveDraft, useHydrated, useTimesheets } from "@/lib/demo-store";
+import { blankTimesheet } from "@/lib/demo-store";
+import { saveSheet, useWorkerSheets } from "@/lib/data";
+import type { SaveStatus } from "@/lib/live/worker-store";
 import { dayMinutes, formatHM, weekTotals } from "@/lib/hours";
 import { copyJobs, withTimesForEveryEntry } from "@/lib/jobs";
 import { useDemoCompany } from "@/lib/demo-company";
@@ -13,10 +15,11 @@ import { ButtonLink, StatusBadge } from "./ui";
 import { resolveWeekParam } from "@/lib/week-param";
 
 export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
-  const hydrated = useHydrated();
-  const store = useTimesheets();
+  const data = useWorkerSheets();
+  const store = data.sheets;
   const company = useDemoCompany();
-  if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
+  if (data.loadError) return <div className="p-8 text-center text-danger">Couldn&apos;t load your timesheets. Check your signal and refresh the page.</div>;
+  if (!data.ready) return <div className="p-8 text-center text-muted">Loading…</div>;
   // Worked out in the browser so "this week" uses the worker's own clock.
   const weekStart = resolveWeekParam(weekParam);
   const saved = store[weekStart];
@@ -24,11 +27,13 @@ export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
   const initial = saved ?? blankTimesheet(weekStart);
   return (
     <Editor
-      key={`${weekStart}-${company.entryMode}`}
+      key={`${weekStart}-${company.entryMode}-${data.live}`}
       initial={timesOnly ? withTimesForEveryEntry(initial) : initial}
       jobHistory={collectJobs(store, company.jobs)}
       timesOnly={timesOnly}
       showOvertime={company.showOvertime}
+      live={data.live}
+      saveStatus={data.saveStatus}
     />
   );
 }
@@ -39,7 +44,18 @@ function collectJobs(store: Record<string, Timesheet>, demoJobs: string[]): stri
   return [...jobs].sort();
 }
 
-function Editor({ initial, jobHistory, timesOnly, showOvertime }: { initial: Timesheet; jobHistory: string[]; timesOnly: boolean; showOvertime: boolean }) {
+type EditorProps = {
+  initial: Timesheet;
+  jobHistory: string[];
+  timesOnly: boolean;
+  showOvertime: boolean;
+  live: boolean;
+  saveStatus: SaveStatus;
+};
+
+const SAVE_LABEL: Record<SaveStatus, string> = { idle: "", saving: "Saving…", saved: "Saved", error: "Not saved yet: check your signal" };
+
+function Editor({ initial, jobHistory, timesOnly, showOvertime, live, saveStatus }: EditorProps) {
   const [sheet, setSheet] = useState(initial);
   const locked = sheet.status !== "draft";
   const totals = weekTotals(sheet.days);
@@ -47,7 +63,7 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime }: { initial: Tim
 
   function update(next: Timesheet) {
     setSheet(next);
-    saveDraft(next);
+    saveSheet(live, next);
   }
 
   function patchDay(index: number, patch: Partial<DayEntry>) {
@@ -72,7 +88,14 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime }: { initial: Tim
             </p>
           </div>
         ) : (
-          <p className="text-center text-sm text-muted">Fill in each day. Your changes save automatically.</p>
+          <p className="text-center text-sm text-muted">
+            Fill in each day. Your changes save automatically.
+            {live && SAVE_LABEL[saveStatus] && (
+              <span role="status" className={`ml-1 font-semibold ${saveStatus === "error" ? "text-danger" : ""}`}>
+                {SAVE_LABEL[saveStatus]}
+              </span>
+            )}
+          </p>
         )}
 
         <datalist id={suggestionsId}>

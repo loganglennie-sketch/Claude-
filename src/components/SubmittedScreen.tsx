@@ -5,7 +5,7 @@ import { brand } from "@/config/brand";
 import { useWorker } from "@/lib/demo-auth";
 import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { downloadFile } from "@/lib/download";
-import { useHydrated, useTimesheets } from "@/lib/demo-store";
+import { useWorkerSheets } from "@/lib/data";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
@@ -14,8 +14,9 @@ import { ButtonLink, Card } from "./ui";
 const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short" });
 
 export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
-  const hydrated = useHydrated();
-  const store = useTimesheets();
+  const data = useWorkerSheets();
+  const hydrated = data.ready;
+  const store = data.sheets;
   const worker = useWorker();
   const companyName = useCompanyName();
   const { colours, showOvertime } = useDemoCompany();

@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useWorker } from "@/lib/demo-auth";
 import { useAppMode } from "@/lib/app-mode";
-import { resetDemo, useHydrated, useTimesheets } from "@/lib/demo-store";
+import { resetDemo } from "@/lib/demo-store";
+import { useWorkerSheets } from "@/lib/data";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
 import { StatusBadge } from "./ui";
 
 export function HistoryScreen() {
-  const hydrated = useHydrated();
-  const store = useTimesheets();
+  const data = useWorkerSheets();
+  const hydrated = data.ready;
+  const store = data.sheets;
   const worker = useWorker();
   const { live } = useAppMode();
   const router = useRouter();
@@ -57,7 +59,7 @@ export function HistoryScreen() {
           Sign out
         </button>
       </div>
-      {sheets.length > 0 && (
+      {!live && sheets.length > 0 && (
         <button
           type="button"
           onClick={() => confirm("Delete all demo timesheets on this device?") && resetDemo()}

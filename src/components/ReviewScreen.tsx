@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { brand } from "@/config/brand";
-import { blankTimesheet, submitTimesheet, useHydrated, useTimesheets } from "@/lib/demo-store";
+import { blankTimesheet } from "@/lib/demo-store";
+import { submitSheet, useWorkerSheets } from "@/lib/data";
 import { dayMinutes, dayTimeline, formatHM, weekTotals } from "@/lib/hours";
 import { Timeline } from "./DayCard";
 import { formatDayMonth, formatShortDay, formatWeekRange, parseISODate } from "@/lib/week";
@@ -14,14 +15,17 @@ import { SignaturePad } from "./SignaturePad";
 import { Button, ButtonLink, Card } from "./ui";
 
 export function ReviewScreen({ weekParam }: { weekParam?: string }) {
-  const hydrated = useHydrated();
-  const store = useTimesheets();
+  const data = useWorkerSheets();
+  const store = data.sheets;
   const company = useDemoCompany();
   const router = useRouter();
   const [declared, setDeclared] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
+  if (data.loadError) return <div className="p-8 text-center text-danger">Couldn&apos;t load your timesheet. Check your signal and refresh the page.</div>;
+  if (!data.ready) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const weekStart = resolveWeekParam(weekParam);
   const stored = store[weekStart] ?? blankTimesheet(weekStart);
@@ -31,10 +35,20 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
   const hasProblems = totals.errors.length > 0 || totals.daysWorked === 0;
   const canSubmit = declared && !!signature && !hasProblems && !alreadySubmitted;
 
-  function submit() {
-    if (!canSubmit || !signature) return;
-    const done = submitTimesheet(weekStart, signature);
-    router.replace(`/timesheet/submitted?week=${done.weekStart}`);
+  async function submit() {
+    if (!canSubmit || !signature || busy) return;
+    setBusy(true);
+    setSubmitError(null);
+    try {
+      // On live addresses the database checks everything again before accepting it.
+      const result = await submitSheet(data.live, sheet, signature);
+      if (result.ok) router.replace(`/timesheet/submitted?week=${weekStart}`);
+      else setSubmitError(result.error);
+    } catch {
+      setSubmitError("Couldn't reach the server. Check your signal and try again. Nothing has been lost.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -129,8 +143,13 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
           </Card>
 
           <div className="space-y-3">
-            <Button onClick={submit} disabled={!canSubmit}>
-              Submit timesheet
+            {submitError && (
+              <p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm font-medium text-danger">
+                {submitError}
+              </p>
+            )}
+            <Button onClick={submit} disabled={!canSubmit || busy}>
+              {busy ? "Submitting…" : "Submit timesheet"}
             </Button>
             {!canSubmit && (
               <p className="text-center text-sm text-muted">

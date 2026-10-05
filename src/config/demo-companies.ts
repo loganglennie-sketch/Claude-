@@ -128,5 +128,5 @@ export const PRESET_KEY = "timesheets:demo:preset";
 export function earlyColourScript(): string {
   const map = Object.fromEntries(Object.entries(DEMO_COMPANIES).map(([id, c]) => [id, colourVars(c.colours)]));
   const hosts = Object.values(DEMO_COMPANIES).filter((c) => c.hostKeyword).map((c) => [c.hostKeyword, c.id]);
-  return `try{var m=${JSON.stringify(map)},h=${JSON.stringify(hosts)},id=null;try{id=localStorage.getItem(${JSON.stringify(PRESET_KEY)})}catch(e){}if(!id)for(var i=0;i<h.length;i++)if(location.hostname.toLowerCase().indexOf(h[i][0])>-1)id=h[i][1];var v=m[id];if(v)for(var k in v)document.documentElement.style.setProperty(k,v[k])}catch(e){}`;
+  return `try{if(document.documentElement.dataset.live)throw 0;var m=${JSON.stringify(map)},h=${JSON.stringify(hosts)},id=null;try{id=localStorage.getItem(${JSON.stringify(PRESET_KEY)})}catch(e){}if(!id)for(var i=0;i<h.length;i++)if(location.hostname.toLowerCase().indexOf(h[i][0])>-1)id=h[i][1];var v=m[id];if(v)for(var k in v)document.documentElement.style.setProperty(k,v[k])}catch(e){}`;
 }

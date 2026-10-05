@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   };
   return (
     // suppressHydrationWarning: a demo company chosen by ?demo= may already be applied by the script below.
-    <html lang="en-GB" style={colourVars(company.colours) as CSSProperties} className="h-full antialiased" suppressHydrationWarning>
+    <html lang="en-GB" style={colourVars(company.colours) as CSSProperties} className="h-full antialiased" data-live={mode.live ? "1" : undefined} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: earlyColourScript() }} />
       </head>

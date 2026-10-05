@@ -14,7 +14,15 @@ import type { DayEntry, Timesheet } from "./types";
 import { addDays, currentWeekStart, isoWeekNumber, parseISODate, toISODate, weekDates } from "./week";
 
 export type PayrollStatus = "not_submitted" | "submitted" | "approved";
-export type PayrollRow = { workerId: string; name: string; role: string; status: PayrollStatus; sheet: Timesheet | null };
+export type PayrollRow = {
+  workerId: string;
+  name: string;
+  role: string;
+  status: PayrollStatus;
+  sheet: Timesheet | null;
+  /** Live addresses only: the database id, used to approve. */
+  timesheetId?: string;
+};
 
 const DEMO_WORKER = { id: "demo", name: "Demo Worker", role: "You (from the worker app)" };
 

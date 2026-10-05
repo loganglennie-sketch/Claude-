@@ -12,6 +12,7 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 import { colourVars, companyIdForHost, DEMO_COMPANIES, findDemoCompany, PRESET_KEY, type DemoCompany } from "@/config/demo-companies";
+import { useAppMode } from "./app-mode";
 
 const NAME_KEY = "timesheets:demo:company";
 const MAX_LENGTH = 60;
@@ -43,12 +44,27 @@ function chosenId(): string | null {
 }
 
 export function useDemoCompany(): DemoCompany {
-  return findDemoCompany(useSyncExternalStore(subscribe, chosenId, () => null));
+  const { live, company: liveCompany } = useAppMode();
+  const demo = findDemoCompany(useSyncExternalStore(subscribe, chosenId, () => null));
+  if (!live || !liveCompany) return demo;
+  // Live: branding from the company's look (by its short code); name and rules from the database.
+  // No made-up team or job numbers.
+  const look = findDemoCompany(liveCompany.slug);
+  return {
+    ...look,
+    companyName: liveCompany.name,
+    entryMode: liveCompany.entry_mode,
+    showOvertime: liveCompany.show_overtime,
+    team: [],
+    jobs: [],
+  };
 }
 
 export function useCompanyName(): string {
   const company = useDemoCompany();
-  return useSyncExternalStore(subscribe, () => get(NAME_KEY), () => null) || company.companyName;
+  const { live } = useAppMode();
+  const override = useSyncExternalStore(subscribe, () => get(NAME_KEY), () => null);
+  return (!live && override) || company.companyName;
 }
 
 function applyColours(company: DemoCompany) {
@@ -64,7 +80,13 @@ function applyColours(company: DemoCompany) {
 
 /** Picks up ?demo= and ?company= from the address bar. Mounted once in the root layout. */
 export function CompanyFromLink() {
+  const { live, company } = useAppMode();
   useEffect(() => {
+    // Live addresses always show their own company; demo links are ignored there.
+    if (live && company) {
+      applyColours(findDemoCompany(company.slug));
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.has("demo")) {
       const id = params.get("demo") ?? "";
@@ -77,7 +99,7 @@ export function CompanyFromLink() {
     }
     applyColours(findDemoCompany(chosenId()));
     listeners.forEach((l) => l());
-  }, []);
+  }, [live, company]);
   return null;
 }
 

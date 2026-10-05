@@ -5,6 +5,8 @@ import { brand } from "@/config/brand";
 import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
 import { approve, defaultPayrollWeek, markReminded, usePayrollWeek, useRemindedAt, type PayrollRow } from "@/lib/demo-payroll";
 import { useHydrated } from "@/lib/demo-store";
+import { useAppMode } from "@/lib/app-mode";
+import { approveLive, refreshLiveWeek, useLivePayrollWeek } from "@/lib/live/payroll-store";
 import { downloadFile } from "@/lib/download";
 import { entrySpan, formatDecimalHours, formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange, parseISODate } from "@/lib/week";
@@ -30,7 +32,10 @@ export function PayrollDashboard({ weekParam }: { weekParam?: string }) {
 }
 
 function Dashboard({ weekStart }: { weekStart: string }) {
-  const rows = usePayrollWeek(weekStart);
+  const mode = useAppMode();
+  const demoRows = usePayrollWeek(weekStart);
+  const liveWeek = useLivePayrollWeek(weekStart);
+  const rows = liveWeek ? liveWeek.rows : demoRows;
   const remindedAt = useRemindedAt(weekStart);
   const companyName = useCompanyName();
   const { colours, showOvertime } = useDemoCompany();
@@ -61,17 +66,32 @@ function Dashboard({ weekStart }: { weekStart: string }) {
 
   function remind(targets: PayrollRow[]) {
     if (targets.length === 0) return;
+    if (mode.live) {
+      flash("Reminder emails will be switched on in the email stage. For now, please remind them directly.");
+      return;
+    }
     markReminded(targets.map((r) => r.workerId), weekStart);
     const who = targets.length === 1 ? targets[0].name : `${targets.length} people`;
     flash(`Reminder sent to ${who}. (Demo: no email was actually sent.)`);
   }
 
-  function approveRow(row: PayrollRow) {
+  async function approveRow(row: PayrollRow) {
+    if (mode.live) {
+      const error = await approveLive(mode, row, weekStart);
+      flash(error ?? `${row.name}'s timesheet approved.`);
+      return;
+    }
     approve(row.workerId, weekStart);
     flash(`${row.name}'s timesheet approved.`);
   }
 
-  function approveAll() {
+  async function approveAll() {
+    if (mode.live) {
+      let done = 0;
+      for (const r of toApprove) if (!(await approveLive(mode, r, weekStart))) done++;
+      flash(`${done} of ${toApprove.length} timesheet${toApprove.length === 1 ? "" : "s"} approved.`);
+      return;
+    }
     toApprove.forEach((r) => approve(r.workerId, weekStart));
     flash(`${toApprove.length} timesheet${toApprove.length === 1 ? "" : "s"} approved.`);
   }
@@ -130,6 +150,17 @@ function Dashboard({ weekStart }: { weekStart: string }) {
           <WeekNav weekStart={weekStart} basePath="/payroll" />
         </div>
       </div>
+
+      {liveWeek && (
+        <div className="flex items-center gap-3 text-sm text-muted">
+          <span role="status">
+            {liveWeek.status === "loading" ? "Loading the latest timesheets…" : liveWeek.status === "error" ? "Couldn't load timesheets. Check your connection." : "Up to date."}
+          </span>
+          <button type="button" onClick={() => refreshLiveWeek(mode, weekStart)} className="min-h-10 rounded-lg px-3 font-semibold text-brand hover:underline">
+            Refresh
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Submitted" value={`${submitted.length} / ${rows.length}`} note={`${toApprove.length} waiting for approval`} />
