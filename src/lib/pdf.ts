@@ -15,6 +15,10 @@ type PdfInput = {
   colours?: { primary: string; primarySoft: string };
   /** Include basic/overtime split (off for companies whose own program applies pay rules). */
   showOvertime?: boolean;
+  /** "nicol-qa-f-27": fill in Nicol of Skene's own paper form instead. */
+  layout?: "standard" | "nicol-qa-f-27";
+  /** Company logo (PNG) for layouts that show it. */
+  logoPath?: string;
 };
 
 const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/London" });
@@ -24,7 +28,24 @@ function hexToRgb(hex: string) {
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
 
-export async function buildTimesheetPdf({ companyName, workerName, sheet, colours = brand.colours, showOvertime = brand.showOvertime }: PdfInput): Promise<Uint8Array> {
+export async function buildTimesheetPdf(input: PdfInput): Promise<Uint8Array> {
+  if (input.layout === "nicol-qa-f-27") {
+    const { buildNicolFormPdf } = await import("./pdf-nicol-form");
+    return buildNicolFormPdf({ workerName: input.workerName, sheet: input.sheet, logoPng: input.logoPath ? await fetchBytes(input.logoPath) : null });
+  }
+  return buildStandardPdf(input);
+}
+
+async function fetchBytes(path: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(path);
+    return res.ok ? await res.arrayBuffer() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildStandardPdf({ companyName, workerName, sheet, colours = brand.colours, showOvertime = brand.showOvertime }: PdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Timesheet – ${workerName} – ${formatWeekRange(sheet.weekStart)}`);
   pdf.setAuthor(companyName);

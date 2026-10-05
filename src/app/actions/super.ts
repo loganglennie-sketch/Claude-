@@ -160,7 +160,9 @@ export async function loadSampleData(companyId: string): Promise<ActionResult> {
 
     for (const week of weeks) {
       const { sheet } = fakeSheet(config, member, index, week);
-      if (!sheet || weekTotals(sheet.days).daysWorked === 0) continue;
+      if (!sheet) continue;
+      const totals = weekTotals(sheet.days, sheet.expenses);
+      if (totals.daysWorked + totals.holidayDays + totals.sickDays === 0) continue;
       const { data: ts, error: tsError } = await admin
         .from("timesheets")
         .insert({
@@ -168,9 +170,9 @@ export async function loadSampleData(companyId: string): Promise<ActionResult> {
           user_id: userId,
           week_start: week,
           status: sheet.status,
-          content: { weekStart: week, days: sheet.days },
+          content: { weekStart: week, days: sheet.days, expenses: sheet.expenses ?? [], notes: sheet.notes ?? "" },
           reference: sheet.reference,
-          total_minutes: weekTotals(sheet.days).totalMinutes,
+          total_minutes: totals.totalMinutes,
           submitted_at: sheet.submittedAt,
           approved_at: sheet.approvedAt ?? null,
         })

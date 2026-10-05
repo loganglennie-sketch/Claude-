@@ -1,5 +1,5 @@
 import { brand } from "@/config/brand";
-import type { DayEntry, JobEntry } from "./types";
+import type { DayEntry, Expense, JobEntry } from "./types";
 import { formatDayName } from "./week";
 
 /** "07:30" → 450. Only accepts real 24-hour times (00:00–23:59). */
@@ -84,7 +84,36 @@ export function entryMinutes(entry: JobEntry): Result {
     if (minutes <= 0) return { minutes: 0, error: "Break is longer than the time worked" };
   }
   if (!entry.jobNumber.trim()) return { minutes, error: "Add the job number" };
+  if (travelMinutes(entry) === null) return { minutes, error: "Travel time should be in hours, like 1 or 1.5" };
   return { minutes, error: null };
+}
+
+/** Travel time on a job in minutes (0 if none), or null if what was typed isn't hours. */
+export function travelMinutes(entry: JobEntry): number | null {
+  const typed = entry.travel?.trim() ?? "";
+  if (!typed) return 0;
+  const minutes = parseHours(typed);
+  return minutes !== null && minutes >= 0 && minutes <= 12 * 60 ? minutes : null;
+}
+
+/** "£12.50", "12.5" or "12" → pence, or null. */
+export function parsePounds(text: string): number | null {
+  const t = text.trim().replace(/^£\s*/, "").replace(/,/g, "");
+  if (!/^\d{1,5}(\.\d{1,2})?$/.test(t)) return null;
+  return Math.round(Number(t) * 100);
+}
+
+/** 1250 → "£12.50" */
+export function formatPounds(pence: number): string {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+/** A problem with one expense line, or null. Empty lines are ignored. */
+export function expenseError(e: Expense): string | null {
+  if (!e.amount.trim() && !e.description.trim() && !e.jobNumber.trim()) return null;
+  const pence = parsePounds(e.amount);
+  if (pence === null || pence === 0) return "Enter the amount in pounds, like 12.50";
+  return null;
 }
 
 /** Total minutes for a day, plus the first problem found (if any). */
@@ -168,17 +197,36 @@ export type WeekTotals = {
   totalMinutes: number;
   overtimeMinutes: number;
   daysWorked: number;
+  holidayDays: number;
+  sickDays: number;
+  /** Travel time across all jobs (recorded separately from hours worked). */
+  travelMinutes: number;
+  awayNights: number;
+  foodDays: number;
+  expensesPence: number;
   errors: { date: string; error: string }[];
+  /** Problems that aren't about one day (e.g. an expense). */
+  otherErrors: string[];
 };
 
-export function weekTotals(days: DayEntry[]): WeekTotals {
+export function weekTotals(days: DayEntry[], expenses: Expense[] = []): WeekTotals {
   let totalMinutes = 0;
   let daysWorked = 0;
+  let holidayDays = 0;
+  let sickDays = 0;
+  let travel = 0;
+  let awayNights = 0;
+  let foodDays = 0;
   const errors: WeekTotals["errors"] = [];
   days.forEach((day, i) => {
     const r = dayMinutes(day);
     totalMinutes += r.minutes;
     if (day.worked) daysWorked++;
+    else if (day.absence === "holiday") holidayDays++;
+    else if (day.absence === "sick") sickDays++;
+    if (day.worked) day.jobs.forEach((j) => (travel += travelMinutes(j) ?? 0));
+    if (day.away && !day.absence) awayNights++;
+    if (day.food && !day.absence) foodDays++;
     let error = r.error;
     // A night shift can't still be going when the next day's first job starts.
     const carry = i > 0 ? overnightFinish(days[i - 1]) : null;
@@ -189,7 +237,21 @@ export function weekTotals(days: DayEntry[]): WeekTotals {
     if (error) errors.push({ date: day.date, error });
   });
   const threshold = brand.overtimeThresholdHours * 60;
-  return { totalMinutes, overtimeMinutes: Math.max(0, totalMinutes - threshold), daysWorked, errors };
+  const otherErrors = expenses.map(expenseError).filter((e): e is string => !!e);
+  const expensesPence = expenses.reduce((sum, e) => sum + (expenseError(e) ? 0 : (parsePounds(e.amount) ?? 0)), 0);
+  return {
+    totalMinutes,
+    overtimeMinutes: Math.max(0, totalMinutes - threshold),
+    daysWorked,
+    holidayDays,
+    sickDays,
+    travelMinutes: travel,
+    awayNights,
+    foodDays,
+    expensesPence,
+    errors,
+    otherErrors: [...new Set(otherErrors)],
+  };
 }
 
 /** 510 → "8h 30m" */

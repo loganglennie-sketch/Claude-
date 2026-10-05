@@ -34,7 +34,7 @@ const pending = new Map<string, { sheet: Timesheet; timer: ReturnType<typeof set
 type Row = {
   week_start: string;
   status: Timesheet["status"];
-  content: { days?: Timesheet["days"] } | null;
+  content: { days?: Timesheet["days"]; expenses?: Timesheet["expenses"]; notes?: string } | null;
   reference: string | null;
   submitted_at: string | null;
   approved_at: string | null;
@@ -46,6 +46,8 @@ export function rowToSheet(r: Row): Timesheet {
   return normaliseTimesheet({
     weekStart: r.week_start,
     days: r.content?.days ?? [],
+    expenses: r.content?.expenses ?? [],
+    notes: r.content?.notes ?? "",
     status: r.status,
     reference: r.reference ?? undefined,
     submittedAt: r.submitted_at ?? undefined,
@@ -53,6 +55,9 @@ export function rowToSheet(r: Row): Timesheet {
     signature: sig?.image_png ?? undefined,
   });
 }
+/** What gets stored for a week: the days, plus expenses and notes. */
+export const sheetContent = (sheet: Timesheet) => ({ weekStart: sheet.weekStart, days: sheet.days, expenses: sheet.expenses ?? [], notes: sheet.notes ?? "" });
+
 export const SHEET_COLUMNS = "week_start, status, content, reference, submitted_at, approved_at, signatures(image_png)";
 
 async function load(mode: AppMode) {
@@ -75,7 +80,7 @@ async function load(mode: AppMode) {
 async function writeDraft(sheet: Timesheet): Promise<string | null> {
   if (!db) return "Not signed in";
   update({ save: "saving" });
-  const { error } = await db.rpc("save_draft", { p_week_start: sheet.weekStart, p_content: { weekStart: sheet.weekStart, days: sheet.days } });
+  const { error } = await db.rpc("save_draft", { p_week_start: sheet.weekStart, p_content: sheetContent(sheet) });
   update({ save: error ? "error" : "saved" });
   return error ? error.message : null;
 }

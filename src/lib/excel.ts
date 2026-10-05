@@ -7,13 +7,18 @@
  */
 import ExcelJS from "exceljs";
 import { brand } from "@/config/brand";
-import { dayJobTotals, dayMinutes, dayTimeline, formatClock, formatHM, weekTotals, type EntrySpan } from "./hours";
+import { dayJobTotals, dayMinutes, dayTimeline, formatClock, formatHM, travelMinutes, weekTotals, type EntrySpan } from "./hours";
 import type { JobEntry, Timesheet } from "./types";
 import { formatDayName, formatShortDay, parseISODate, weekDates } from "./week";
 
 export type ExportRow = { name: string; status: string; sheet: Timesheet | null };
 type Colours = { primary: string; primarySoft: string };
-export type WorkbookOptions = { colours?: Colours; showOvertime?: boolean };
+export type WorkbookOptions = {
+  colours?: Colours;
+  showOvertime?: boolean;
+  /** Company records travel, nights away, food and expenses (adds those columns). */
+  allowances?: { awayShort: string; foodShort: string };
+};
 
 const hours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
 const argb = (hex: string) => `FF${hex.replace("#", "").toUpperCase()}`;
@@ -42,7 +47,7 @@ type EntryLine = {
  * Columns of the "Job entries" sheet, in order. To match the job costing
  * program's import layout, reorder, rename or remove entries in this list.
  */
-export const JOB_ENTRY_COLUMNS: { header: string; width: number; numFmt?: string; value: (l: EntryLine) => ExcelJS.CellValue }[] = [
+export const JOB_ENTRY_COLUMNS: { header: string; width: number; numFmt?: string; allowancesOnly?: boolean; value: (l: EntryLine) => ExcelJS.CellValue }[] = [
   { header: "Employee", width: 22, value: (l) => l.employee },
   { header: "Date", width: 12, numFmt: "dd/mm/yyyy", value: (l) => excelDate(l.date) },
   { header: "Day", width: 11, value: (l) => formatDayName(l.date) },
@@ -52,6 +57,7 @@ export const JOB_ENTRY_COLUMNS: { header: string; width: number; numFmt?: string
   { header: "Break (mins)", width: 12, value: (l) => (l.span ? l.entry.breakMins || 0 : null) },
   { header: "Hours", width: 8, numFmt: "0.00", value: (l) => hours(l.minutes) },
   { header: "Overnight", width: 10, value: (l) => (l.span?.overnight ? "Yes" : "No") },
+  { header: "Travel (hours)", width: 13, numFmt: "0.00", allowancesOnly: true, value: (l) => (travelMinutes(l.entry) ? hours(travelMinutes(l.entry)!) : null) },
   {
     header: "Gap before this job",
     width: 22,
@@ -60,7 +66,8 @@ export const JOB_ENTRY_COLUMNS: { header: string; width: number; numFmt?: string
 ];
 
 export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], companyName: string, options: WorkbookOptions = {}): Promise<ArrayBuffer> {
-  const { colours = brand.colours, showOvertime = brand.showOvertime } = options;
+  const { colours = brand.colours, showOvertime = brand.showOvertime, allowances } = options;
+  const entryColumns = JOB_ENTRY_COLUMNS.filter((c) => !c.allowancesOnly || allowances);
   const wb = new ExcelJS.Workbook();
   wb.creator = companyName;
   wb.created = new Date();
@@ -108,9 +115,9 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
     }
   }
   const entries = wb.addWorksheet("Job entries");
-  header(entries, JOB_ENTRY_COLUMNS.map((c) => c.header));
-  for (const l of lines) entries.addRow(JOB_ENTRY_COLUMNS.map((c) => c.value(l)));
-  JOB_ENTRY_COLUMNS.forEach((c, i) => {
+  header(entries, entryColumns.map((c) => c.header));
+  for (const l of lines) entries.addRow(entryColumns.map((c) => c.value(l)));
+  entryColumns.forEach((c, i) => {
     const column = entries.getColumn(i + 1);
     column.width = c.width;
     if (c.numFmt) column.numFmt = c.numFmt;
@@ -118,36 +125,49 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
   if (lines.length === 0) entries.addRow(["No submitted timesheets for this week yet"]);
 
   // ── 2. Daily & weekly totals ─────────────────────────────────────────
+  // Days show hours worked, or "Holiday" / "Sick" (text, so SUM skips it).
   const pay = wb.addWorksheet("Daily & weekly totals");
-  const totalCols = showOvertime ? 2 : 1;
-  header(pay, ["Employee", "Status", ...dayHeaders, "Total hours worked", ...(showOvertime ? ["Overtime hours"] : [])]);
+  const extraHeaders = [
+    "Total hours worked",
+    ...(showOvertime ? ["Overtime hours"] : []),
+    "Holiday days",
+    "Sick days",
+    ...(allowances ? ["Travel hours", `${allowances.awayShort} nights`, `${allowances.foodShort} (days)`, "Expenses (£)"] : []),
+  ];
+  header(pay, ["Employee", "Status", ...dayHeaders, ...extraHeaders, "Other details"]);
   for (const r of employees) {
     if (!r.sheet) {
       pay.addRow([r.name, r.status]);
       continue;
     }
-    const totals = weekTotals(r.sheet.days);
+    const totals = weekTotals(r.sheet.days, r.sheet.expenses);
     pay.addRow([
       r.name,
       r.status,
-      ...r.sheet.days.map((d) => hours(dayMinutes(d).minutes)),
+      ...r.sheet.days.map((d) => (d.worked ? hours(dayMinutes(d).minutes) : d.absence === "holiday" ? "Holiday" : d.absence === "sick" ? "Sick" : null)),
       hours(totals.totalMinutes),
       ...(showOvertime ? [hours(totals.overtimeMinutes)] : []),
+      totals.holidayDays || null,
+      totals.sickDays || null,
+      ...(allowances ? [totals.travelMinutes ? hours(totals.travelMinutes) : null, totals.awayNights || null, totals.foodDays || null, totals.expensesPence ? totals.expensesPence / 100 : null] : []),
+      r.sheet.notes?.trim() || null,
     ]);
   }
   const lastPay = pay.rowCount;
+  const numericCols = 7 + extraHeaders.length;
   const payTotal = pay.addRow([
     "Total",
     `${submitted.length} of ${employees.length} submitted`,
-    ...Array.from({ length: 7 + totalCols }, (_, i) => ({
+    ...Array.from({ length: numericCols }, (_, i) => ({
       formula: `SUM(${col(3 + i)}2:${col(3 + i)}${lastPay})`,
       result: sumOf(pay, 3 + i, range(2, lastPay)),
     })),
   ]);
   totalStyle(payTotal);
   pay.columns.forEach((c, i) => {
-    c.width = i === 0 ? 24 : i === 1 ? 20 : i === 9 ? 18 : 11;
-    if (i >= 2) c.numFmt = "0.00";
+    const header = String(pay.getRow(1).getCell(i + 1).value ?? "");
+    c.width = i === 0 ? 24 : i === 1 ? 20 : header === "Other details" ? 50 : header.length > 11 ? header.length + 2 : 11;
+    if (i >= 2 && i < 2 + numericCols) c.numFmt = header === "Expenses (£)" ? "£0.00" : /days|nights/i.test(header) ? "0" : "0.00";
   });
 
   // ── 3. Hours by job ─────────────────────────────────────────────────

@@ -6,7 +6,8 @@ import { brand } from "@/config/brand";
 import { blankTimesheet } from "@/lib/demo-store";
 import { submitSheet, useWorkerSheets } from "@/lib/data";
 import { dayMinutes, dayTimeline, formatHM, weekTotals } from "@/lib/hours";
-import { Timeline } from "./DayCard";
+import { DAY_STATUS_LABEL, dayStatus, Timeline } from "./DayCard";
+import { allowanceSummary, dayExtrasText, WeekExtrasList } from "./WeekExtras";
 import { formatDayMonth, formatShortDay, formatWeekRange, parseISODate } from "@/lib/week";
 import { resolveWeekParam } from "@/lib/week-param";
 import { useDemoCompany } from "@/lib/demo-company";
@@ -30,9 +31,10 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
   const weekStart = resolveWeekParam(weekParam);
   const stored = store[weekStart] ?? blankTimesheet(weekStart);
   const sheet = company.entryMode === "times" ? withTimesForEveryEntry(stored) : stored;
-  const totals = weekTotals(sheet.days);
+  const totals = weekTotals(sheet.days, sheet.expenses);
   const alreadySubmitted = sheet.status !== "draft";
-  const hasProblems = totals.errors.length > 0 || totals.daysWorked === 0;
+  const nothingEntered = totals.daysWorked + totals.holidayDays + totals.sickDays === 0;
+  const hasProblems = totals.errors.length > 0 || totals.otherErrors.length > 0 || nothingEntered;
   const canSubmit = declared && !!signature && !hasProblems && !alreadySubmitted;
 
   async function submit() {
@@ -86,8 +88,9 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
                         {error && <div className="mt-1 font-medium text-danger">{error}</div>}
                       </>
                     ) : (
-                      <span className="text-muted">Day off</span>
+                      <span className={day.absence ? "font-semibold" : "text-muted"}>{DAY_STATUS_LABEL[dayStatus(day)]}</span>
                     )}
+                    {dayExtrasText(day, company.allowances) && <div className="mt-1 px-1 text-xs font-semibold text-brand-dark">{dayExtrasText(day, company.allowances)}</div>}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">{day.worked ? formatHM(r.minutes) : "–"}</td>
                 </tr>
@@ -110,6 +113,16 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
         </table>
       </Card>
 
+      {(allowanceSummary(sheet, company.allowances).length > 0 || sheet.notes?.trim() || (sheet.expenses ?? []).length > 0) && (
+        <Card className="space-y-3">
+          {allowanceSummary(sheet, company.allowances).length > 0 && <p className="font-semibold">{allowanceSummary(sheet, company.allowances).join(" · ")}</p>}
+          <WeekExtrasList sheet={sheet} />
+          {totals.otherErrors.map((e) => (
+            <p key={e} className="font-medium text-danger">Expenses: {e}</p>
+          ))}
+        </Card>
+      )}
+
       {alreadySubmitted ? (
         <Card>
           <p>This week has already been submitted (ref {sheet.reference}).</p>
@@ -117,7 +130,7 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
       ) : hasProblems ? (
         <Card className="border-danger/40">
           <p className="font-semibold text-danger">
-            {totals.daysWorked === 0 ? "You haven't marked any days as worked." : "Some days need fixing before you can submit."}
+            {nothingEntered ? "You haven't marked any days as worked, holiday or sick." : "Some things need fixing before you can submit."}
           </p>
           <ButtonLink href={`/timesheet?week=${weekStart}`} variant="secondary" className="mt-3">
             ← Go back and fix

@@ -19,7 +19,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
   const store = data.sheets;
   const worker = useWorker();
   const companyName = useCompanyName();
-  const { colours, showOvertime } = useDemoCompany();
+  const { colours, showOvertime, pdfLayout, logoPath } = useDemoCompany();
   const [busy, setBusy] = useState(false);
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
@@ -40,7 +40,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
     try {
       const { buildTimesheetPdf, pdfFileName } = await import("@/lib/pdf");
       const name = worker?.name ?? "Worker";
-      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet, colours, showOvertime });
+      const bytes = await buildTimesheetPdf({ companyName, workerName: name, sheet, colours, showOvertime, layout: pdfLayout, logoPath });
       downloadFile(bytes as BlobPart, pdfFileName(name, sheet.weekStart), "application/pdf");
     } finally {
       setBusy(false);

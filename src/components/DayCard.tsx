@@ -15,13 +15,29 @@ type Props = {
   jobSuggestionsId: string;
   onChange: (patch: Partial<DayEntry>) => void;
   onCopyPrevious?: () => void;
+  /** Monday only: copy this day to Tuesday–Friday. */
+  onCopyToWeekdays?: () => void;
   /** Company records start and finish times for every job (no "type the hours" option). */
   timesOnly?: boolean;
   /** A problem that involves another day (e.g. starting before last night's shift ended). */
   weekError?: string | null;
+  /** Company's allowance wording; shows travel on each job and the away/food ticks. */
+  allowances?: Allowances;
 };
 
-export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious, timesOnly = false, weekError }: Props) {
+type Allowances = { away: string; awayShort: string; food: string; foodShort: string };
+
+const STATUS_OPTIONS = [
+  { key: "worked", label: "Worked" },
+  { key: "off", label: "Day off" },
+  { key: "holiday", label: "Holiday" },
+  { key: "sick", label: "Sick" },
+] as const;
+type DayStatus = (typeof STATUS_OPTIONS)[number]["key"];
+export const dayStatus = (day: DayEntry): DayStatus => (day.worked ? "worked" : (day.absence ?? "off"));
+export const DAY_STATUS_LABEL: Record<DayStatus, string> = { worked: "Worked", off: "Day off", holiday: "Holiday", sick: "Sick" };
+
+export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevious, onCopyToWeekdays, timesOnly = false, weekError, allowances }: Props) {
   const blankEntry = () => newJobEntry(timesOnly ? { mode: "times" } : {});
   const { minutes } = dayMinutes(day);
   const isToday = day.date === toISODate(new Date());
@@ -31,6 +47,12 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
   const timeline = dayTimeline(day);
   const timedJobs = timeline.items.filter((i) => i.kind === "job" && i.span).length;
   const clash = timeline.overlaps[0];
+  const status = dayStatus(day);
+
+  function setStatus(next: DayStatus) {
+    if (next === "worked") onChange({ worked: true, absence: undefined, ...(day.jobs.length === 0 ? { jobs: [blankEntry()] } : {}) });
+    else onChange({ worked: false, absence: next === "off" ? undefined : next, ...(next === "off" ? {} : { away: false, food: false }) });
+  }
 
   const setJobs = (jobs: JobEntry[]) => onChange({ jobs });
   const patchJob = (id: string, patch: Partial<JobEntry>) => setJobs(day.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)));
@@ -49,29 +71,26 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
         {weekend && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-ink">Weekend</span>}
         {isToday && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-dark">Today</span>}
         <span
-          aria-label={day.worked ? `${dayName} total ${formatHM(minutes)}` : `${dayName} off`}
+          aria-label={day.worked ? `${dayName} total ${formatHM(minutes)}` : `${dayName}: ${DAY_STATUS_LABEL[status]}`}
           className={`ml-auto rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${
-            day.worked && minutes > 0 ? "bg-brand text-white" : "bg-page text-muted"
+            day.worked && minutes > 0 ? "bg-brand text-white" : day.absence ? "bg-accent/15 text-ink" : "bg-page text-muted"
           }`}
         >
-          {day.worked ? (minutes > 0 ? formatHM(minutes) : "–") : "Off"}
+          {day.worked ? (minutes > 0 ? formatHM(minutes) : "–") : day.absence ? DAY_STATUS_LABEL[status] : "Off"}
         </span>
       </div>
 
       {!readOnly && (
-        <div role="radiogroup" aria-label={`${dayName}: worked or day off`} className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-page p-1">
-          {[
-            { value: true, label: "Worked" },
-            { value: false, label: "Day off" },
-          ].map((opt) => (
+        <div role="radiogroup" aria-label={`${dayName}: worked, day off, holiday or sick`} className="mt-3 grid grid-cols-4 gap-1 rounded-xl bg-page p-1">
+          {STATUS_OPTIONS.map((opt) => (
             <button
-              key={opt.label}
+              key={opt.key}
               type="button"
               role="radio"
-              aria-checked={day.worked === opt.value}
-              onClick={() => onChange(opt.value && day.jobs.length === 0 ? { worked: true, jobs: [blankEntry()] } : { worked: opt.value })}
-              className={`min-h-12 rounded-lg text-base font-semibold transition ${
-                day.worked === opt.value ? "bg-surface text-brand shadow-sm" : "text-muted"
+              aria-checked={status === opt.key}
+              onClick={() => setStatus(opt.key)}
+              className={`min-h-12 rounded-lg px-1 text-[0.95rem] font-semibold leading-tight transition ${
+                status === opt.key ? "bg-surface text-brand shadow-sm" : "text-muted"
               }`}
             >
               {opt.label}
@@ -92,6 +111,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
                 dayName={dayName}
                 jobSuggestionsId={jobSuggestionsId}
                 timesOnly={timesOnly}
+                showTravel={!!allowances}
                 onChange={(patch) => patchJob(entry.id, patch)}
                 onRemove={() => removeJob(entry.id)}
               />
@@ -136,6 +156,20 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
         </div>
       )}
 
+      {allowances && !day.absence && (
+        <AllowanceTicks day={day} allowances={allowances} readOnly={readOnly} dayName={dayName} onChange={onChange} />
+      )}
+
+      {!readOnly && onCopyToWeekdays && (
+        <button
+          type="button"
+          onClick={onCopyToWeekdays}
+          className="mt-3 flex min-h-12 w-full items-center justify-center rounded-xl bg-brand-soft px-3 text-base font-semibold text-brand-dark"
+        >
+          Same for Tuesday to Friday
+        </button>
+      )}
+
       {!readOnly && onCopyPrevious && (
         <button type="button" onClick={onCopyPrevious} className="mt-3 min-h-11 text-sm font-semibold text-brand underline-offset-4 hover:underline">
           ↺ Same as previous day
@@ -151,11 +185,12 @@ type EditorProps = {
   dayName: string;
   jobSuggestionsId: string;
   timesOnly: boolean;
+  showTravel: boolean;
   onChange: (patch: Partial<JobEntry>) => void;
   onRemove: () => void;
 };
 
-function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, onChange, onRemove }: EditorProps) {
+function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, showTravel, onChange, onRemove }: EditorProps) {
   const { minutes, error } = entryMinutes(entry);
   const span = entrySpan(entry);
   const touched = !!(entry.jobNumber || entry.hours || entry.start || entry.finish);
@@ -264,6 +299,22 @@ function JobEntryEditor({ entry, index, dayName, jobSuggestionsId, timesOnly, on
         </div>
       )}
 
+      {showTravel && (
+        <label className="mt-3 flex items-center gap-3">
+          <span className="text-sm font-medium text-muted">
+            Travel time <span className="font-normal">(hours, if any)</span>
+          </span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={entry.travel ?? ""}
+            onChange={(e) => onChange({ travel: e.target.value.replace(/[^\d.,:h]/gi, "").slice(0, 5) })}
+            placeholder="0"
+            className="ml-auto min-h-12 w-20 rounded-xl border-2 border-line bg-surface text-center text-lg font-semibold tabular-nums placeholder:text-muted/50 focus:border-brand focus:outline-none"
+          />
+        </label>
+      )}
+
       {!timesOnly && (
         <button type="button" onClick={switchMode} className="mt-2 min-h-10 text-sm font-semibold text-brand underline-offset-4 hover:underline">
           {entry.mode === "hours" ? "Use start & finish times instead" : "Type the hours instead"}
@@ -315,5 +366,43 @@ export function Timeline({ items, compact = false }: { items: TimelineItem[]; co
         ),
       )}
     </ul>
+  );
+}
+
+/** Tick boxes for the nightly allowances (staying away, food). */
+function AllowanceTicks({
+  day,
+  allowances,
+  readOnly,
+  dayName,
+  onChange,
+}: {
+  day: DayEntry;
+  allowances: Allowances;
+  readOnly?: boolean;
+  dayName: string;
+  onChange: (patch: Partial<DayEntry>) => void;
+}) {
+  if (readOnly) {
+    const claimed = [day.away && allowances.away, day.food && allowances.food].filter(Boolean);
+    return claimed.length ? <p className="mt-3 text-sm font-medium text-brand-dark">✓ {claimed.join(" · ")}</p> : null;
+  }
+  const tick = (key: "away" | "food", label: string) => (
+    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-line bg-page/60 px-3">
+      <input
+        type="checkbox"
+        checked={!!day[key]}
+        onChange={(e) => onChange({ [key]: e.target.checked })}
+        aria-label={`${dayName}: ${label}`}
+        className="h-6 w-6 shrink-0 accent-[var(--brand-primary)]"
+      />
+      <span className="text-base leading-snug">{label}</span>
+    </label>
+  );
+  return (
+    <div className="mt-3 space-y-2">
+      {tick("away", allowances.away)}
+      {tick("food", allowances.food)}
+    </div>
   );
 }

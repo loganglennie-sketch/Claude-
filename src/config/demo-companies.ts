@@ -31,6 +31,13 @@ export type DemoCompany = {
   jobs: string[];
   /** Web addresses containing this word open as this company. */
   hostKeyword?: string;
+  /**
+   * Allowances workers claim on their timesheet: travel time on each job, a tick
+   * for nights away and for food, and expenses. Leave out to hide them.
+   */
+  allowances?: { away: string; awayShort: string; food: string; foodShort: string };
+  /** "nicol-qa-f-27": the PDF copies Nicol of Skene's paper timesheet (see lib/pdf-nicol-form.ts). */
+  pdfLayout?: "standard" | "nicol-qa-f-27";
 };
 
 export const DEFAULT_COMPANY: DemoCompany = {
@@ -91,6 +98,14 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
     ],
     latestStatuses: ["approved", "submitted", "submitted", "not_submitted", "submitted"],
     jobs: ["3105", "3112", "3118", "3124", "3131", "3137"],
+    allowances: {
+      away: "Stayed away from home (Bench Mark Scale Rate)",
+      awayShort: "Away",
+      food: "Food allowance",
+      foodShort: "Food",
+    },
+    // PDF laid out like their paper timesheet, form QA-F-27.
+    pdfLayout: "nicol-qa-f-27",
   },
 };
 

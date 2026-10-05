@@ -8,6 +8,9 @@ import { Timeline } from "../DayCard";
 import { formatDayMonth, formatShortDay, formatWeekRange, parseISODate } from "@/lib/week";
 import { StatusBadge } from "../ui";
 import { Signature } from "./Signature";
+import { DAY_STATUS_LABEL, dayStatus } from "../DayCard";
+import { allowanceSummary, dayExtrasText, WeekExtrasList } from "../WeekExtras";
+import { useDemoCompany } from "@/lib/demo-company";
 
 const stamp = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 export const toBadge = (s: PayrollRow["status"]) => (s === "not_submitted" ? "draft" : s);
@@ -33,8 +36,9 @@ export function WorkerDetail({ row, weekStart, remindedAt, onClose, onApprove, o
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const { allowances } = useDemoCompany();
   const sheet = row.sheet;
-  const totals = sheet ? weekTotals(sheet.days) : null;
+  const totals = sheet ? weekTotals(sheet.days, sheet.expenses) : null;
   const btn = "min-h-12 rounded-xl px-5 font-semibold";
 
   return (
@@ -92,12 +96,16 @@ export function WorkerDetail({ row, weekStart, remindedAt, onClose, onApprove, o
                         <>
                           <td className="px-2 py-2.5">
                             <Timeline items={dayTimeline(d).items} compact />
+                            {dayExtrasText(d, allowances) && <div className="mt-1 px-1 text-xs font-semibold text-brand-dark">{dayExtrasText(d, allowances)}</div>}
                           </td>
                           <td className="px-4 py-2.5 text-right font-semibold">{formatDecimalHours(dayMinutes(d).minutes)}</td>
                         </>
                       ) : (
                         <>
-                          <td className="px-2 py-2.5 text-muted">Day off</td>
+                          <td className={`px-2 py-2.5 ${d.absence ? "font-semibold" : "text-muted"}`}>
+                            {DAY_STATUS_LABEL[dayStatus(d)]}
+                            {dayExtrasText(d, allowances) && <div className="text-xs font-semibold text-brand-dark">{dayExtrasText(d, allowances)}</div>}
+                          </td>
                           <td className="px-4 py-2.5 text-right text-muted">–</td>
                         </>
                       )}
@@ -118,6 +126,13 @@ export function WorkerDetail({ row, weekStart, remindedAt, onClose, onApprove, o
                 </tfoot>
               </table>
             </div>
+
+            {(allowanceSummary(sheet, allowances).length > 0 || sheet.notes?.trim()) && (
+              <div className="mt-4 space-y-3 rounded-2xl border border-line bg-surface p-4">
+                {allowanceSummary(sheet, allowances).length > 0 && <p className="font-semibold">{allowanceSummary(sheet, allowances).join(" · ")}</p>}
+                <WeekExtrasList sheet={sheet} />
+              </div>
+            )}
 
             <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
               <div className="rounded-2xl border border-line bg-surface p-4">

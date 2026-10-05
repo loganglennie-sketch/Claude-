@@ -5,7 +5,7 @@
  * the server can use it too.
  */
 import type { DemoCompany } from "@/config/demo-companies";
-import type { DayEntry, Timesheet } from "./types";
+import type { DayEntry, Expense, Timesheet } from "./types";
 import { addDays, currentWeekStart, isoWeekNumber, parseISODate, toISODate, weekDates } from "./week";
 
 export type PayrollStatus = "not_submitted" | "submitted" | "approved";
@@ -39,7 +39,8 @@ export function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][numb
   const status: PayrollStatus = !latest ? "approved" : (company.latestStatuses[index] ?? "submitted");
   if (status === "not_submitted") return { status, sheet: null };
 
-  const days = company.entryMode === "times" ? timedWeek(index, weekStart, rand, JOBS) : typedHoursWeek(weekStart, rand, JOBS);
+  const baseDays = company.entryMode === "times" ? timedWeek(index, weekStart, rand, JOBS) : typedHoursWeek(weekStart, rand, JOBS);
+  const { days, expenses, notes } = company.allowances ? withAllowances(baseDays, index, weekStart, rand) : { days: baseDays, expenses: [], notes: "" };
 
   // Most people submit on Friday afternoon. If that's still to come, pretend it was
   // 1–4 hours ago (rounded to the hour so the demo doesn't change on every reload).
@@ -61,6 +62,8 @@ export function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][numb
     sheet: {
       weekStart,
       days,
+      expenses,
+      notes,
       status,
       reference: `TS-${year}-W${String(week).padStart(2, "0")}-${suffix}`,
       submittedAt,
@@ -172,4 +175,28 @@ function timedWeek(index: number, weekStart: string, rand: () => number, JOBS: s
     }));
     return { date, worked: true, jobs };
   });
+}
+
+/**
+ * Paper-form extras for companies with allowances: travel time, nights away,
+ * food, the odd holiday or sick day, expenses and a note.
+ */
+function withAllowances(days: DayEntry[], index: number, weekStart: string, rand: () => number): { days: DayEntry[]; expenses: Expense[]; notes: string } {
+  const latest = weekStart >= addDays(defaultPayrollWeek(), -7);
+  const role = index % 5; // 0 travels, 1 nights, 2 works away, 3 local, 4 has a holiday
+  const out = days.map((d, i): DayEntry => {
+    // One person takes Friday as holiday; now and then someone else is off sick or on holiday.
+    if (i === 4 && role === 4 && (latest || rand() < 0.3)) return { date: d.date, worked: false, absence: "holiday", jobs: [] };
+    if (i < 5 && !latest && rand() < 0.03) return { date: d.date, worked: false, absence: rand() < 0.5 ? "sick" : "holiday", jobs: [] };
+    if (!d.worked) return d;
+    const jobs = d.jobs.map((j, k) => (k === 0 && (role === 0 || role === 2) && i < 5 ? { ...j, travel: role === 0 ? "1" : i === 0 || i === 3 ? "2.5" : "" } : j));
+    const away = role === 2 && i < 3;
+    return { ...d, jobs, away, food: away || role === 1 };
+  });
+  const expenses: Expense[] = [];
+  const firstJob = out.find((d) => d.worked && d.jobs[0])?.jobs[0]?.jobNumber ?? "";
+  if (role === 0 && rand() < 0.6) expenses.push({ id: `${weekStart}-p`, jobNumber: firstJob, amount: "6.50", description: "Parking" });
+  if (role === 2 && rand() < 0.4) expenses.push({ id: `${weekStart}-m`, jobNumber: firstJob, amount: (8 + Math.floor(rand() * 30)).toFixed(2), description: "Fixings from merchant" });
+  const notes = role === 2 && latest ? "Stayed in digs near the site Monday to Wednesday nights." : "";
+  return { days: out, expenses, notes };
 }

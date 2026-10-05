@@ -10,6 +10,8 @@ import { useDemoCompany } from "@/lib/demo-company";
 import type { DayEntry, Timesheet } from "@/lib/types";
 import { brand } from "@/config/brand";
 import { DayCard } from "./DayCard";
+import { WeekExtrasEditor } from "./WeekExtras";
+import type { DemoCompany } from "@/config/demo-companies";
 import { WeekNav } from "./WeekNav";
 import { ButtonLink, StatusBadge } from "./ui";
 import { resolveWeekParam } from "@/lib/week-param";
@@ -32,6 +34,7 @@ export function TimesheetScreen({ weekParam }: { weekParam?: string }) {
       jobHistory={collectJobs(store, company.jobs)}
       timesOnly={timesOnly}
       showOvertime={company.showOvertime}
+      allowances={company.allowances}
       live={data.live}
       saveStatus={data.saveStatus}
     />
@@ -49,16 +52,17 @@ type EditorProps = {
   jobHistory: string[];
   timesOnly: boolean;
   showOvertime: boolean;
+  allowances?: DemoCompany["allowances"];
   live: boolean;
   saveStatus: SaveStatus;
 };
 
 const SAVE_LABEL: Record<SaveStatus, string> = { idle: "", saving: "Saving…", saved: "Saved", error: "Not saved yet: check your signal" };
 
-function Editor({ initial, jobHistory, timesOnly, showOvertime, live, saveStatus }: EditorProps) {
+function Editor({ initial, jobHistory, timesOnly, showOvertime, allowances, live, saveStatus }: EditorProps) {
   const [sheet, setSheet] = useState(initial);
   const locked = sheet.status !== "draft";
-  const totals = weekTotals(sheet.days);
+  const totals = weekTotals(sheet.days, sheet.expenses);
   const suggestionsId = "job-suggestions";
 
   function update(next: Timesheet) {
@@ -70,9 +74,15 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, live, saveStatus
     update({ ...sheet, days: sheet.days.map((d, i) => (i === index ? { ...d, ...patch } : d)) });
   }
 
+  const sameAs = (day: DayEntry): Partial<DayEntry> => ({ worked: day.worked, absence: day.absence, away: day.away, food: day.food, jobs: copyJobs(day.jobs) });
+
   function copyPrevious(index: number) {
-    const prev = sheet.days[index - 1];
-    patchDay(index, { worked: prev.worked, jobs: copyJobs(prev.jobs) });
+    patchDay(index, sameAs(sheet.days[index - 1]));
+  }
+
+  /** "Same job all week": Monday copied to Tuesday–Friday in one tap. */
+  function copyMondayToWeekdays() {
+    update({ ...sheet, days: sheet.days.map((d, i) => (i >= 1 && i <= 4 ? { ...d, ...sameAs(sheet.days[0]) } : d)) });
   }
 
   return (
@@ -113,9 +123,13 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, live, saveStatus
             onChange={(patch) => patchDay(i, patch)}
             onCopyPrevious={i > 0 ? () => copyPrevious(i) : undefined}
             timesOnly={timesOnly}
+            allowances={allowances}
+            onCopyToWeekdays={i === 0 && day.worked ? copyMondayToWeekdays : undefined}
             weekError={totals.errors.find((e) => e.date === day.date && e.error !== dayMinutes(day).error)?.error}
           />
         ))}
+
+        <WeekExtrasEditor sheet={sheet} readOnly={locked} showExpenses={!!allowances} jobSuggestionsId={suggestionsId} onChange={(patch) => update({ ...sheet, ...patch })} />
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
@@ -127,6 +141,9 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, live, saveStatus
             </div>
             <div className="text-right text-sm text-muted">
               {totals.daysWorked} day{totals.daysWorked === 1 ? "" : "s"} worked
+              {totals.holidayDays + totals.sickDays > 0 && (
+                <div>{[totals.holidayDays && `${totals.holidayDays} holiday`, totals.sickDays && `${totals.sickDays} sick`].filter(Boolean).join(" · ")}</div>
+              )}
               {showOvertime && (
                 <div className={totals.overtimeMinutes > 0 ? "font-semibold text-ink" : ""}>
                   Overtime: {formatHM(totals.overtimeMinutes)}
