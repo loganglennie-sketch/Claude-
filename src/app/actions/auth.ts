@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { getLiveCompany } from "@/lib/live/context";
 import { createServerAdminClient, createUserClient } from "@/lib/supabase/server";
 
-export type SignInResult = { ok: true; redirectTo: string } | { ok: false; error: string };
+export type SignInResult = { ok: true; redirectTo: string; mustChangePin?: boolean } | { ok: false; error: string };
 
 const WRONG = "That name and PIN don't match. Check them and try again.";
 
@@ -73,7 +73,7 @@ export async function signInWithPin(name: string, pin: string): Promise<SignInRe
     session = await supabase.auth.signInWithPassword({ email, password });
   }
   if (session.error) return { ok: false, error: "Sorry, we couldn't sign you in. Please try again." };
-  return { ok: true, redirectTo: "/timesheet" };
+  return { ok: true, redirectTo: "/timesheet", mustChangePin: data.must_change_pin === true };
 }
 
 /** Email + password for company admins and the super admin. */
@@ -119,6 +119,24 @@ async function becomeFirstSuperAdmin(authUserId: string, email: string | undefin
   if (error || !data) return null;
   await admin.from("audit_log").insert({ actor_user_id: data.id, target_user_id: data.id, action: "super_admin_created" });
   return data;
+}
+
+const PIN_CHANGE_ERRORS: Record<string, string> = {
+  wrong_current: "Your current PIN isn't right. Check it and try again.",
+  locked: "Too many wrong PINs. Your account is locked for 15 minutes. Ask the office if you need it unlocked sooner.",
+  same_as_current: "Choose a different PIN from the one you were given.",
+  too_easy: "That PIN is too easy to guess (like 1234 or 1111). Choose another.",
+  not_four_numbers: "Your PIN must be exactly 4 numbers.",
+};
+
+/** A signed-in worker chooses their own PIN (they confirm the current one). */
+export async function changeOwnPin(currentPin: string, newPin: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!/^\d{4}$/.test(newPin)) return { ok: false, error: PIN_CHANGE_ERRORS.not_four_numbers };
+  const supabase = await createUserClient();
+  const { data, error } = await supabase.rpc("worker_change_pin", { p_current_pin: currentPin, p_new_pin: newPin });
+  if (error) return { ok: false, error: /sign in again/i.test(error.message) ? "Please sign in again." : "Sorry, something went wrong. Please try again." };
+  if (!data?.ok) return { ok: false, error: PIN_CHANGE_ERRORS[data?.reason as string] ?? "Sorry, something went wrong. Please try again." };
+  return { ok: true };
 }
 
 export async function signOutLive(): Promise<void> {

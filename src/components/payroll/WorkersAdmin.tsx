@@ -13,6 +13,8 @@ type WorkerRow = {
   locked_until: string | null;
   last_sign_in_at: string | null;
   deactivated_at: string | null;
+  /** Still on the starting PIN from the office (they choose their own at first sign-in). */
+  pin_must_change?: boolean;
 };
 type Panel = { id: string; kind: "pin" | "rename" | "leave" } | null;
 
@@ -43,11 +45,10 @@ export function WorkersAdmin() {
 
   const load = useCallback(async () => {
     if (!db) return;
-    const { data, error } = await db
-      .from("users")
-      .select("id, full_name, employee_number, active, locked_until, last_sign_in_at, deactivated_at")
-      .eq("role", "worker")
-      .order("full_name");
+    const columns = "id, full_name, employee_number, active, locked_until, last_sign_in_at, deactivated_at";
+    let { data, error } = await db.from("users").select(`${columns}, pin_must_change`).eq("role", "worker").order("full_name");
+    // Before the "workers choose their own PIN" database update, that column isn't there yet.
+    if (error) ({ data, error } = await db.from("users").select(columns).eq("role", "worker").order("full_name"));
     setLoadError(!!error);
     if (!error) setWorkers(data as WorkerRow[]);
   }, [db]);
@@ -99,7 +100,7 @@ export function WorkersAdmin() {
         </p>
       )}
 
-      <AddWorker onAdd={(name, pin, emp) => call("admin_add_worker", { p_full_name: name, p_pin: pin, p_employee_number: emp || null }, `${name.trim()} added. Their PIN is ${pin}: give it to them in person.`)} />
+      <AddWorker onAdd={(name, pin, emp) => call("admin_add_worker", { p_full_name: name, p_pin: pin, p_employee_number: emp || null }, `${name.trim()} added. Their starting PIN is ${pin}: give it to them in person. They'll choose their own PIN the first time they sign in.`)} />
 
       <ul className="space-y-3">
         {active.map((w) => (
@@ -202,7 +203,7 @@ function PinField({ pin, setPin }: { pin: string; setPin: (p: string) => void })
         />
         <SmallButton onClick={() => setPin(suggestPin())}>New random PIN</SmallButton>
       </div>
-      <span className="mt-1 block text-xs text-muted">Give it to them in person. It can&apos;t be looked up later, only reset.</span>
+      <span className="mt-1 block text-xs text-muted">A starting PIN: give it to them in person. They choose their own when they first sign in, and it can&apos;t be looked up, only reset.</span>
     </label>
   );
 }
@@ -243,6 +244,9 @@ function WorkerCard({
                   : "Not signed in yet"}
             </div>
           </div>
+          {w.active && w.pin_must_change && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Starting PIN</span>
+          )}
           {locked && <span className="rounded-full bg-danger/10 px-3 py-1 text-xs font-semibold text-danger">Locked until {clock.format(new Date(w.locked_until!))}</span>}
         </div>
 
@@ -250,7 +254,7 @@ function WorkerCard({
           <div className="mt-3 space-y-2 rounded-xl bg-brand-soft/60 p-3">
             <PinField pin={pin} setPin={setPin} />
             <div className="flex gap-2">
-              <SmallButton primary disabled={busy || pin.length !== 4} onClick={() => run("admin_reset_pin", { p_user_id: w.id, p_new_pin: pin }, `${w.full_name}'s new PIN is ${pin}. Their account is unlocked too.`)}>
+              <SmallButton primary disabled={busy || pin.length !== 4} onClick={() => run("admin_reset_pin", { p_user_id: w.id, p_new_pin: pin }, `${w.full_name}'s starting PIN is ${pin}, and their account is unlocked. They'll choose their own PIN when they next sign in.`)}>
                 Save new PIN
               </SmallButton>
               <SmallButton onClick={() => setPanel(null)}>Cancel</SmallButton>

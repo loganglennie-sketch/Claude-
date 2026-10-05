@@ -223,7 +223,7 @@ function Done({ result }: { result: Extract<ActionResult, { ok: true }> }) {
       <p className="font-medium">{result.message}</p>
       {result.pins && (
         <>
-          <p>Sign-in PINs (shown only once; write them down or reset them later from the company&apos;s Workers page):</p>
+          <p>Starting PINs (shown only once; write them down). Each worker chooses their own PIN the first time they sign in:</p>
           <ul className="grid grid-cols-2 gap-1 font-mono">
             {result.pins.map((p) => (
               <li key={p.name}>

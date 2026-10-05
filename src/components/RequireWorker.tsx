@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useWorker } from "@/lib/demo-auth";
 import { useHydrated } from "@/lib/demo-store";
@@ -13,7 +13,16 @@ export function RequireWorker({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { live, me } = useAppMode();
   // Live: office staff don't have timesheets here; send them to their own pages.
-  const elsewhere = live && me && me.role !== "worker" ? (me.role === "super_admin" ? "/super" : "/payroll") : null;
+  const pathname = usePathname();
+  const elsewhere =
+    live && me && me.role !== "worker"
+      ? me.role === "super_admin"
+        ? "/super"
+        : "/payroll"
+      : // Still on the starting PIN the office gave out: choose their own first.
+        live && me?.mustChangePin && pathname !== "/timesheet/pin"
+        ? "/timesheet/pin"
+        : null;
 
   useEffect(() => {
     if (hydrated && !worker) router.replace("/login");

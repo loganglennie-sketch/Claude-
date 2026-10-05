@@ -16,6 +16,8 @@ export type LiveUser = {
   fullName: string;
   role: "super_admin" | "company_admin" | "worker";
   companyId: string | null;
+  /** Worker still on the starting PIN the office gave them: ask them to choose their own. */
+  mustChangePin: boolean;
 };
 
 type CompanyRow = LiveCompany & { host_keywords: string[] };
@@ -68,7 +70,14 @@ export const getLiveUser = cache(async (): Promise<LiveUser | null> => {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return null;
     const { data } = await supabase.from("users").select("id, full_name, role, company_id").eq("auth_user_id", auth.user.id).eq("active", true).maybeSingle();
-    return data ? { id: data.id, fullName: data.full_name, role: data.role, companyId: data.company_id } : null;
+    if (!data) return null;
+    let mustChangePin = false;
+    if (data.role === "worker") {
+      // Separate query: if the database update adding this hasn't been run yet, everything else still works.
+      const { data: pin } = await supabase.from("users").select("pin_must_change").eq("id", data.id).maybeSingle();
+      mustChangePin = !!pin?.pin_must_change;
+    }
+    return { id: data.id, fullName: data.full_name, role: data.role, companyId: data.company_id, mustChangePin };
   } catch {
     return null;
   }

@@ -8,6 +8,7 @@ import { useAppMode } from "@/lib/app-mode";
 import { signInWithPin } from "@/app/actions/auth";
 import Link from "next/link";
 import { Button } from "./ui";
+import { ChoosePinForm } from "./ChoosePin";
 
 export const PIN_LENGTH = 4;
 
@@ -22,11 +23,13 @@ export function LoginScreen() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Signed in with the starting PIN from the office: choose their own before carrying on.
+  const [choosePin, setChoosePin] = useState<{ pin: string; redirectTo: string } | null>(null);
   const { live } = useAppMode();
 
   useEffect(() => {
-    if (worker) router.replace(worker.payroll ? "/payroll" : "/timesheet");
-  }, [worker, router]);
+    if (worker && !choosePin) router.replace(worker.payroll ? "/payroll" : "/timesheet");
+  }, [worker, router, choosePin]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +46,10 @@ export function LoginScreen() {
     setError(null);
     try {
       const result = await signInWithPin(name, pin);
+      if (result.ok && result.mustChangePin) {
+        setChoosePin({ pin, redirectTo: result.redirectTo });
+        return;
+      }
       if (result.ok) {
         router.replace(result.redirectTo);
         router.refresh(); // reload who's signed in from the server
@@ -55,6 +62,21 @@ export function LoginScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (choosePin) {
+    return (
+      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-10">
+        <ChoosePinForm
+          currentPin={choosePin.pin}
+          forced
+          onDone={() => {
+            router.replace(choosePin.redirectTo);
+            router.refresh();
+          }}
+        />
+      </main>
+    );
   }
 
   return (

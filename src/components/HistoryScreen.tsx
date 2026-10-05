@@ -65,6 +65,11 @@ export function HistoryScreen() {
           Sign out
         </button>
       </div>
+      {live && (
+        <Link href="/timesheet/pin" className="block min-h-11 text-center text-sm font-semibold text-brand underline-offset-4 hover:underline">
+          Change my PIN
+        </Link>
+      )}
       {!live && sheets.length > 0 && (
         <button
           type="button"
