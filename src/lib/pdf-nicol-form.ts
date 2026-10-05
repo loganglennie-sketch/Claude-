@@ -329,7 +329,18 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
     t("NO", (col.food[1] + col.expenses[1]) / 2, mid(o2, o3, 10), { font: bold, size: 10, align: "center" });
     page.drawRectangle({ x: L, y: H - gridBottom, width: R - L, height: gridBottom - top.grid, borderColor: black, borderWidth: 1.2 });
 
-    t("Times are 24-hour.  * = finished the next day.  Total hours per day are after breaks.", L, gridBottom + 9, { size: 6, color: muted });
+    t("Times are 24-hour.  * = finished the next day.  Hours are after breaks.", R, gridBottom + 8, { size: 6, color: muted, align: "right" });
+
+    // Total hours worked for the week (the paper form only has per-day totals).
+    const weekBoxTop = gridBottom + 4;
+    const weekBoxBottom = weekBoxTop + 18;
+    box(L, weekBoxTop, 181, weekBoxBottom, grey, 1);
+    t("Total Hours Worked This Week:", 177, mid(weekBoxTop, weekBoxBottom, 7.5), { font: bold, size: 7.5, align: "right" });
+    box(181, weekBoxTop, 259, weekBoxBottom, undefined, 1);
+    if (last) {
+      const weekMinutes = sheet.days.reduce((n, d) => n + dayMinutes(d).minutes, 0);
+      t(hours(weekMinutes), 220, mid(weekBoxTop, weekBoxBottom, 11), { font: bold, size: 11, color: ink, align: "center" });
+    }
 
     // ── Sign-off ──
     const sign = (label: string, y: number, name?: string, date?: string, image?: typeof signature, path?: string) => {
@@ -351,8 +362,8 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
       if (date) t(date, 724, y - 1, { font: bold, size: 10, color: ink });
     };
     const submitted = sheet.submittedAt ? londonDate(sheet.submittedAt) : undefined;
-    sign("Employee", gridBottom + 34, last ? workerName : undefined, last ? submitted : undefined, last ? signature : undefined, last && !signature ? sheet.signaturePath : undefined);
-    sign("Chargehand", gridBottom + 62);
+    sign("Employee", gridBottom + 39, last ? workerName : undefined, last ? submitted : undefined, last ? signature : undefined, last && !signature ? sheet.signaturePath : undefined);
+    sign("Chargehand", gridBottom + 65);
     sign("Line Manager", gridBottom + 90);
 
     // ── Other details (notes and expense descriptions) ──
