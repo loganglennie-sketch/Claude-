@@ -25,6 +25,11 @@ let companyCache: { at: number; rows: CompanyRow[] } | null = null;
 const CACHE_MS = 60_000;
 const LOOKUP_TIMEOUT_MS = 2_500;
 
+/** Call after adding or changing a company so its web address works straight away. */
+export function forgetCompanies() {
+  companyCache = null;
+}
+
 async function activeCompanies(): Promise<CompanyRow[]> {
   if (companyCache && Date.now() - companyCache.at < CACHE_MS) return companyCache.rows;
   try {

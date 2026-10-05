@@ -85,7 +85,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
   await admin.rpc("log_admin_sign_in", { p_email: email.trim(), p_success: !error, p_ip: ip, p_user_agent: userAgent });
   if (error || !signedIn.user) return { ok: false, error: "That email and password don't match." };
 
-  const { data: me } = await supabase.from("users").select("role, company_id, active").eq("auth_user_id", signedIn.user.id).maybeSingle();
+  let { data: me } = await supabase.from("users").select("role, company_id, active").eq("auth_user_id", signedIn.user.id).maybeSingle();
+  if (!me) me = await becomeFirstSuperAdmin(signedIn.user.id, signedIn.user.email);
   if (!me || !me.active || me.role === "worker") {
     await supabase.auth.signOut();
     return { ok: false, error: "This sign-in is for office staff. Workers sign in with their name and PIN." };
@@ -98,6 +99,26 @@ export async function signInWithEmail(email: string, password: string): Promise<
     return { ok: false, error: "Please sign in on your company's own web address." };
   }
   return { ok: true, redirectTo: "/payroll" };
+}
+
+/**
+ * One-off setup: the owner (SUPER_ADMIN_EMAIL) becomes the super admin the
+ * first time they sign in, as long as there isn't one already.
+ */
+async function becomeFirstSuperAdmin(authUserId: string, email: string | undefined) {
+  const owner = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!owner || !email || email.toLowerCase() !== owner) return null;
+  const admin = createServerAdminClient();
+  const { count } = await admin.from("users").select("id", { count: "exact", head: true }).eq("role", "super_admin");
+  if (count !== 0) return null;
+  const { data, error } = await admin
+    .from("users")
+    .insert({ role: "super_admin", company_id: null, auth_user_id: authUserId, full_name: "Super admin", email: email.toLowerCase() })
+    .select("id, role, company_id, active")
+    .single();
+  if (error || !data) return null;
+  await admin.from("audit_log").insert({ actor_user_id: data.id, target_user_id: data.id, action: "super_admin_created" });
+  return data;
 }
 
 export async function signOutLive(): Promise<void> {

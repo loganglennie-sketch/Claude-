@@ -1,3 +1,6 @@
+"use client";
+
+import { useAppMode } from "@/lib/app-mode";
 import { CompanyIcon, CompanyName } from "@/lib/demo-company";
 
 export function AppHeader({ right, subtitle = "Timesheets", wide = false }: { right?: React.ReactNode; subtitle?: React.ReactNode; wide?: boolean }) {
@@ -20,6 +23,8 @@ export function AppHeader({ right, subtitle = "Timesheets", wide = false }: { ri
 }
 
 export function DemoBanner() {
+  // Live company addresses use real data, so no banner there.
+  if (useAppMode().live) return null;
   return (
     <div className="bg-brand-soft text-center text-xs text-brand-dark px-4 py-2">
       Demo mode — made-up data, saved on this device only. No emails are sent.

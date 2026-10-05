@@ -1,0 +1,175 @@
+/**
+ * DEMO ONLY: made-up timesheets for the demo dashboard and for loading sample
+ * data into a test company. Hours are generated from the worker and week, so
+ * the same week always gives the same numbers. No browser-only code here, so
+ * the server can use it too.
+ */
+import type { DemoCompany } from "@/config/demo-companies";
+import type { DayEntry, Timesheet } from "./types";
+import { addDays, currentWeekStart, isoWeekNumber, parseISODate, toISODate, weekDates } from "./week";
+
+export type PayrollStatus = "not_submitted" | "submitted" | "approved";
+
+/** Latest week payroll normally works on: this week from Friday, otherwise last week. */
+export function defaultPayrollWeek(): string {
+  const day = new Date().getDay(); // Sun=0 … Sat=6
+  const thisWeek = currentWeekStart();
+  return day === 0 || day >= 5 ? thisWeek : addDays(thisWeek, -7);
+}
+
+// Small repeatable random-number generator so demo data is stable.
+export function seeded(seed: string) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353) >>> 0;
+  return () => {
+    h = (h + 0x6d2b79f5) >>> 0;
+    let t = h;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const pick = <T,>(rand: () => number, items: readonly T[]) => items[Math.floor(rand() * items.length)];
+
+export function fakeSheet(company: DemoCompany, worker: DemoCompany["team"][number], index: number, weekStart: string): { status: PayrollStatus; sheet: Timesheet | null } {
+  const JOBS = company.jobs;
+  const rand = seeded(`${worker.id}:${weekStart}`);
+  const latest = weekStart >= defaultPayrollWeek();
+  // In the latest week show a realistic mix; older weeks are all signed off.
+  const status: PayrollStatus = !latest ? "approved" : (company.latestStatuses[index] ?? "submitted");
+  if (status === "not_submitted") return { status, sheet: null };
+
+  const days = company.entryMode === "times" ? timedWeek(index, weekStart, rand, JOBS) : typedHoursWeek(weekStart, rand, JOBS);
+
+  // Most people submit on Friday afternoon. If that's still to come, pretend it was
+  // 1–4 hours ago (rounded to the hour so the demo doesn't change on every reload).
+  const friday = parseISODate(addDays(weekStart, 4));
+  friday.setHours(15, Math.floor(rand() * 150));
+  const thisHour = new Date();
+  thisHour.setMinutes(0, 0, 0);
+  const earlier = thisHour.getTime() - Math.round((1 + rand() * 3) * 60) * 60_000;
+  const submittedMs = friday.getTime() < Date.now() ? friday.getTime() : earlier;
+  const submittedAt = new Date(submittedMs).toISOString();
+  const { year, week } = isoWeekNumber(weekStart);
+  const suffix = Math.floor(rand() * 36 ** 4).toString(36).toUpperCase().padStart(4, "0");
+  const approvedGuess = submittedMs + Math.round(30 + rand() * 90) * 60_000; // same afternoon
+  const approvedMs = approvedGuess < Date.now() ? approvedGuess : submittedMs + 20 * 60_000;
+  const approvedAt = status === "approved" ? new Date(approvedMs).toISOString() : undefined;
+
+  return {
+    status,
+    sheet: {
+      weekStart,
+      days,
+      status,
+      reference: `TS-${year}-W${String(week).padStart(2, "0")}-${suffix}`,
+      submittedAt,
+      approvedAt,
+      signaturePath: fakeSignature(worker.name, rand),
+    },
+  };
+}
+
+/** A squiggle that looks enough like a signature, inside a 300×90 box. */
+export function fakeSignature(name: string, rand: () => number): string {
+  let x = 18;
+  let d = `M ${x} ${55 + rand() * 10}`;
+  for (const ch of name.replace(/[^a-z]/gi, "").slice(0, 12)) {
+    const tall = /[A-Zbdfhklt]/.test(ch);
+    const top = tall ? 12 + rand() * 10 : 36 + rand() * 8;
+    const w = 12 + rand() * 8;
+    d += ` C ${x + w * 0.2} ${top}, ${x + w * 0.9} ${top}, ${x + w * 0.6} ${60 + rand() * 6}`;
+    d += ` S ${x + w * 1.1} ${48 + rand() * 8}, ${x + w} ${58 + rand() * 6}`;
+    x += w * 0.85;
+    if (x > 250) break;
+  }
+  d += ` M 20 ${74 + rand() * 4} Q ${x / 2} ${66 + rand() * 6}, ${Math.min(x + 20, 285)} ${70 + rand() * 6}`;
+  return d;
+}
+
+/** Made-up week for companies that type hours (job numbers and hours only). */
+function typedHoursWeek(weekStart: string, rand: () => number, JOBS: string[]): DayEntry[] {
+  const mainJob = pick(rand, JOBS);
+  const holiday = rand() < 0.12 ? Math.floor(rand() * 5) : -1;
+  const worksSaturday = rand() < 0.35;
+  return weekDates(weekStart).map((date, i) => {
+    const worked = i < 5 ? i !== holiday : i === 5 && worksSaturday;
+    if (!worked) return { date, worked: false, jobs: [] };
+    // Hours actually worked that day, in half hours, then split across 1–3 jobs.
+    const halfHours = i === 5 ? pick(rand, [8, 9, 10]) : pick(rand, [15, 16, 16, 17, 18, 19]);
+    const roll = rand();
+    const parts = roll < 0.55 ? 1 : roll < 0.9 ? 2 : 3;
+    const splits: number[] = [];
+    let left = halfHours;
+    for (let k = parts; k > 1; k--) {
+      const share = Math.max(2, Math.min(left - 2 * (k - 1), Math.round((left / k) * (0.6 + rand() * 0.8))));
+      splits.push(share);
+      left -= share;
+    }
+    splits.push(left);
+    const used = new Set<string>();
+    const jobs = splits.map((h, k) => {
+      let job = k === 0 && rand() < 0.75 ? mainJob : pick(rand, JOBS);
+      while (used.has(job)) job = pick(rand, JOBS);
+      used.add(job);
+      return { id: `${date}-${k}`, jobNumber: job, mode: "hours" as const, hours: String(h / 2), start: "", finish: "", breakMins: 0 };
+    });
+    return { date, worked: true, jobs };
+  });
+
+}
+
+// ── Made-up weeks with clock times (companies that record start and finish) ──
+// Each template is a list of [job slot, start, finish, break minutes]; slots A/B/C get different job numbers.
+type Slot = 0 | 1 | 2;
+const TEMPLATES: Record<string, [Slot, string, string, number][]> = {
+  normal: [[0, "07:30", "16:30", 30]],
+  split: [[0, "07:30", "11:30", 0], [1, "12:15", "16:45", 30]], // 45 min gap travelling between sites
+  split3: [[0, "07:00", "10:00", 0], [1, "10:30", "13:00", 0], [2, "13:45", "17:00", 30]],
+  dayPlusEvening: [[0, "07:30", "15:30", 30], [1, "17:30", "21:00", 0]],
+  night: [[0, "22:00", "06:00", 30]], // runs past midnight
+  short: [[0, "07:30", "13:00", 0]],
+  saturday: [[0, "08:00", "12:30", 0]],
+  sunday: [[0, "09:00", "13:00", 0]],
+};
+type Week = (keyof typeof TEMPLATES | null)[];
+/** Showcase weeks for the latest two weeks, by team position, so every feature appears. */
+const SHOWCASE: Week[] = [
+  ["split", "normal", "split3", "dayPlusEvening", "normal", "saturday", null], // splits, gaps, evening, Saturday
+  ["night", "night", "night", "night", null, null, "night"], // night shifts incl. Sunday night
+  ["normal", "split", "normal", "split", "split3", null, null],
+  ["normal", "normal", "normal", "normal", "normal", null, null],
+  ["normal", "normal", "dayPlusEvening", "normal", "short", "saturday", null],
+];
+
+function timedWeek(index: number, weekStart: string, rand: () => number, JOBS: string[]): DayEntry[] {
+  const showcase = weekStart >= addDays(defaultPayrollWeek(), -7);
+  const nights = index % SHOWCASE.length === 1;
+  const week: Week = showcase
+    ? SHOWCASE[index % SHOWCASE.length]
+    : weekDates(weekStart).map((_, i) => {
+        if (nights) return i < 4 ? "night" : null;
+        if (i === 5) return rand() < 0.35 ? "saturday" : null;
+        if (i === 6) return rand() < 0.08 ? "sunday" : null;
+        if (rand() < 0.08) return null; // day off
+        const r = rand();
+        return r < 0.5 ? "normal" : r < 0.75 ? "split" : r < 0.87 ? "split3" : "dayPlusEvening";
+      });
+  const today = toISODate(new Date());
+  return weekDates(weekStart).map((date, i) => {
+    const template = week[i];
+    // Days that haven't happened yet are left empty.
+    if (!template || date > today) return { date, worked: false, jobs: [] };
+    const slots = [...JOBS].sort(() => rand() - 0.5).slice(0, 3);
+    const jobs = TEMPLATES[template].map(([slot, start, finish, breakMins], k) => ({
+      id: `${date}-${k}`,
+      jobNumber: slots[slot],
+      mode: "times" as const,
+      hours: "",
+      start,
+      finish,
+      breakMins,
+    }));
+    return { date, worked: true, jobs };
+  });
+}

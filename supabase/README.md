@@ -3,7 +3,11 @@
 ## Set-up (once)
 1. Create a Supabase project in the **London (eu-west-2)** region.
 2. Open **SQL Editor**, paste the whole of `migrations/20261004000000_phase1_backend.sql` and click **Run**.
-3. Copy the keys listed in `/.env.example` into Vercel's environment variables.
+3. Then do the same with `migrations/20261005000000_phase1_admin_tools.sql`.
+4. Copy the keys listed in `/.env.example` into Vercel's environment variables (including `SUPER_ADMIN_EMAIL`).
+5. **Authentication → Users → Add user**: your own email and a strong password (tick "Auto confirm").
+6. Sign in at `/office` with it. The first time, it makes you the super admin and opens `/super`, where you add
+   companies, their office admins, and (for test companies) a sample team with timesheets.
 
 ## What's in it
 | Table | Holds |

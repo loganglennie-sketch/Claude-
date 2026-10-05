@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { signOut, useWorker } from "@/lib/demo-auth";
 import { useAppMode } from "@/lib/app-mode";
@@ -36,5 +37,17 @@ export function SignOutButton() {
         }} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold">
       Sign out
     </button>
+  );
+}
+
+/** Live addresses: switch between timesheets and managing workers. */
+export function PayrollNav() {
+  const { live } = useAppMode();
+  const onWorkers = usePathname().startsWith("/payroll/workers");
+  if (!live) return null;
+  return (
+    <Link href={onWorkers ? "/payroll" : "/payroll/workers"} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold">
+      {onWorkers ? "Timesheets" : "Workers"}
+    </Link>
   );
 }
