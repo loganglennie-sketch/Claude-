@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useWorker } from "@/lib/demo-auth";
+import { useAppMode } from "@/lib/app-mode";
 import { resetDemo, useHydrated, useTimesheets } from "@/lib/demo-store";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
@@ -11,6 +13,8 @@ export function HistoryScreen() {
   const hydrated = useHydrated();
   const store = useTimesheets();
   const worker = useWorker();
+  const { live } = useAppMode();
+  const router = useRouter();
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const sheets = Object.values(store).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
@@ -43,7 +47,13 @@ export function HistoryScreen() {
       </ul>
       <div className="flex items-center justify-between border-t border-line pt-4 text-sm text-muted">
         <span>Signed in as {worker?.name}</span>
-        <button type="button" onClick={signOut} className="min-h-11 rounded-xl border-2 border-line bg-surface px-4 font-semibold text-brand">
+        <button type="button" onClick={async () => {
+          await signOut(live);
+          if (live) {
+            router.replace("/login");
+            router.refresh();
+          }
+        }} className="min-h-11 rounded-xl border-2 border-line bg-surface px-4 font-semibold text-brand">
           Sign out
         </button>
       </div>

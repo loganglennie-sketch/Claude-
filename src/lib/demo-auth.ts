@@ -7,6 +7,8 @@
  * repeated wrong guesses), and this file is removed.
  */
 import { useSyncExternalStore } from "react";
+import { useAppMode } from "./app-mode";
+import { signOutLive } from "@/app/actions/auth";
 
 export type Worker = { id: string; name: string; payroll: boolean };
 
@@ -57,7 +59,11 @@ function subscribe(listener: () => void) {
 
 /** The signed-in worker, or null. */
 export function useWorker(): Worker | null {
-  return useSyncExternalStore(subscribe, read, () => null);
+  const mode = useAppMode();
+  const demo = useSyncExternalStore(subscribe, read, () => null);
+  if (!mode.live) return demo;
+  const me = mode.me;
+  return me ? { id: me.id, name: me.fullName, payroll: me.role === "company_admin" } : null;
 }
 
 /** Names match ignoring capitals and extra spaces, so "demo  worker" works. */
@@ -74,6 +80,8 @@ export function signIn(name: string, pin: string): { ok: true; worker: Worker } 
   return { ok: true, worker };
 }
 
-export function signOut() {
+/** Signs out. On live addresses this also ends the real session; callers then refresh the page data. */
+export async function signOut(live = false): Promise<void> {
   write(null);
+  if (live) await signOutLive().catch(() => undefined);
 }

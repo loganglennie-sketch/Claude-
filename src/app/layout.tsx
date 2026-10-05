@@ -4,6 +4,9 @@ import type { CSSProperties } from "react";
 import { brand } from "@/config/brand";
 import { colourVars, companyIdForHost, earlyColourScript, findDemoCompany } from "@/config/demo-companies";
 import { CompanyFromLink } from "@/lib/demo-company";
+import { AppModeProvider } from "@/lib/app-mode";
+import { getLiveCompany, getLiveUser } from "@/lib/live/context";
+import { supabasePublicConfig } from "@/lib/supabase/config";
 import "./globals.css";
 
 /** The company this web address belongs to (e.g. a "nicol" address → Nicol of Skene). */
@@ -37,6 +40,13 @@ export async function generateViewport(): Promise<Viewport> {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const company = await companyForThisAddress();
+  const liveCompany = await getLiveCompany();
+  const mode = {
+    live: !!liveCompany,
+    company: liveCompany,
+    me: liveCompany ? await getLiveUser() : null,
+    supabase: liveCompany ? supabasePublicConfig() : null,
+  };
   return (
     // suppressHydrationWarning: a demo company chosen by ?demo= may already be applied by the script below.
     <html lang="en-GB" style={colourVars(company.colours) as CSSProperties} className="h-full antialiased" suppressHydrationWarning>
@@ -44,8 +54,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: earlyColourScript() }} />
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        <CompanyFromLink />
-        {children}
+        <AppModeProvider value={mode}>
+          <CompanyFromLink />
+          {children}
+        </AppModeProvider>
       </body>
     </html>
   );

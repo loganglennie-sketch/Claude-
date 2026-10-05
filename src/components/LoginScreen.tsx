@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DEMO_LOGINS, signIn, useWorker } from "@/lib/demo-auth";
 import { useCompanyName, useDemoCompany } from "@/lib/demo-company";
+import { useAppMode } from "@/lib/app-mode";
+import { signInWithPin } from "@/app/actions/auth";
+import Link from "next/link";
 import { Button } from "./ui";
 
 export const PIN_LENGTH = 4;
@@ -18,17 +21,39 @@ export function LoginScreen() {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { live } = useAppMode();
 
   useEffect(() => {
     if (worker) router.replace(worker.payroll ? "/payroll" : "/timesheet");
   }, [worker, router]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const result = signIn(name, pin);
-    if (!result.ok) {
+    if (!live) {
+      const result = signIn(name, pin);
+      if (!result.ok) {
+        setError(result.error);
+        setPin("");
+      }
+      return;
+    }
+    // Live: the PIN is checked on the server, never on the phone.
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await signInWithPin(name, pin);
+      if (result.ok) {
+        router.replace(result.redirectTo);
+        router.refresh(); // reload who's signed in from the server
+        return;
+      }
       setError(result.error);
       setPin("");
+    } catch {
+      setError("Couldn't reach the server. Check your signal and try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -83,20 +108,26 @@ export function LoginScreen() {
           </p>
         )}
 
-        <Button type="submit" disabled={!name.trim() || pin.length !== PIN_LENGTH}>
-          Sign in
+        <Button type="submit" disabled={busy || !name.trim() || pin.length !== PIN_LENGTH}>
+          {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">Forgotten your PIN? Ask the office to reset it.</p>
-      <div className="mt-6 space-y-1 rounded-xl bg-brand-soft p-3 text-center text-sm text-brand-dark">
-        <div className="font-semibold">Try the demo</div>
-        {DEMO_LOGINS.map((l) => (
-          <div key={l.name}>
-            {l.payroll ? "Office / payroll" : "Worker"}: <strong>{l.name}</strong>, PIN <strong>{l.pin}</strong>
-          </div>
-        ))}
-      </div>
+      {live ? (
+        <Link href="/office" className="mt-4 min-h-11 text-center text-sm font-semibold text-brand underline-offset-4 hover:underline">
+          Office staff sign in
+        </Link>
+      ) : (
+        <div className="mt-6 space-y-1 rounded-xl bg-brand-soft p-3 text-center text-sm text-brand-dark">
+          <div className="font-semibold">Try the demo</div>
+          {DEMO_LOGINS.map((l) => (
+            <div key={l.name}>
+              {l.payroll ? "Office / payroll" : "Worker"}: <strong>{l.name}</strong>, PIN <strong>{l.pin}</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
