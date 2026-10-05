@@ -5,7 +5,8 @@
 2. Open **SQL Editor**, paste the whole of `migrations/20261004000000_phase1_backend.sql` and click **Run**.
 3. Then do the same with `migrations/20261005000000_phase1_admin_tools.sql`, and then
    `migrations/20261006000000_nicol_form_fields.sql` (holiday/sick, travel, nights away, food, expenses, notes), and
-   `migrations/20261007000000_workers_choose_pin.sql` (workers choose their own PIN at first sign-in).
+   `migrations/20261007000000_workers_choose_pin.sql` (workers choose their own PIN at first sign-in), and
+   `migrations/20261008000000_sturdier_user_checks.sql` (fixes saving on PostgreSQL 17 after a users-table change).
 4. Copy the keys listed in `/.env.example` into Vercel's environment variables (including `SUPER_ADMIN_EMAIL`).
 5. **Authentication → Users → Add user**: your own email and a strong password (tick "Auto confirm").
 6. Sign in at `/office` with it. The first time, it makes you the super admin and opens `/super`, where you add
@@ -29,6 +30,10 @@ checked function. Nothing is ever deleted. 5 wrong PINs lock an account for 15 m
 plain Postgres after `tests/local-supabase-stub.sql` and the migrations.
 
 ## Writing a new database update
+Database functions must not hand a whole `public.users` record to each other (`me := some_function()`): on
+PostgreSQL 17 it arrived empty after a column was added. Pass the id (`private.require_worker_id()`,
+`private.require_company_admin_id()`) and `select * into me from public.users where id = …`.
+
 End every script that changes a table with:
 
 ```sql
