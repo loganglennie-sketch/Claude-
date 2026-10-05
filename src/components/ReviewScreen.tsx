@@ -32,7 +32,7 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
   const stored = store[weekStart] ?? blankTimesheet(weekStart);
   const sheet = company.entryMode === "times" ? withTimesForEveryEntry(stored) : stored;
   const totals = weekTotals(sheet.days, sheet.expenses);
-  const alreadySubmitted = sheet.status !== "draft";
+  const alreadySubmitted = sheet.status !== "draft" || !!sheet.queued;
   const nothingEntered = totals.daysWorked + totals.holidayDays + totals.sickDays === 0;
   const hasProblems = totals.errors.length > 0 || totals.otherErrors.length > 0 || nothingEntered;
   const canSubmit = declared && !!signature && !hasProblems && !alreadySubmitted;
@@ -44,7 +44,7 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
     try {
       // On live addresses the database checks everything again before accepting it.
       const result = await submitSheet(data.live, sheet, signature);
-      if (result.ok) router.replace(`/timesheet/submitted?week=${weekStart}`);
+      if (result.ok) router.replace(`/timesheet/submitted?week=${weekStart}`); // queued ones show "waiting for signal" there
       else setSubmitError(result.error);
     } catch {
       setSubmitError("Couldn't reach the server. Check your signal and try again. Nothing has been lost.");
@@ -125,12 +125,16 @@ export function ReviewScreen({ weekParam }: { weekParam?: string }) {
 
       {alreadySubmitted ? (
         <Card>
-          <p>This week has already been submitted (ref {sheet.reference}).</p>
+          <p>{sheet.queued ? "This week is signed and will send as soon as you have signal." : `This week has already been submitted (ref ${sheet.reference}).`}</p>
         </Card>
       ) : hasProblems ? (
         <Card className="border-danger/40">
           <p className="font-semibold text-danger">
-            {nothingEntered ? "You haven't marked any days as worked, holiday or sick." : "Some things need fixing before you can submit."}
+            {nothingEntered
+              ? company.allowances
+                ? "You haven't marked any days as worked, holiday or sick."
+                : "You haven't marked any days as worked."
+              : "Some days need fixing before you can submit."}
           </p>
           <ButtonLink href={`/timesheet?week=${weekStart}`} variant="secondary" className="mt-3">
             ← Go back and fix

@@ -31,7 +31,8 @@ export function saveSheet(live: boolean, sheet: Timesheet) {
   else saveDemoDraft(sheet);
 }
 
-export async function submitSheet(live: boolean, sheet: Timesheet, signature: string): Promise<{ ok: true } | { ok: false; error: string }> {
+/** queued: signed with no signal; it sends itself when the phone is back online. */
+export async function submitSheet(live: boolean, sheet: Timesheet, signature: string): Promise<{ ok: true; queued?: boolean } | { ok: false; error: string }> {
   if (live) return submitLive(sheet, signature);
   submitDemo(sheet.weekStart, signature);
   return { ok: true };

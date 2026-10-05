@@ -8,6 +8,7 @@ import { AppModeProvider } from "@/lib/app-mode";
 import { getLiveCompany, getLiveUser } from "@/lib/live/context";
 import { supabasePublicConfig } from "@/lib/supabase/config";
 import "./globals.css";
+import { OfflineSupport } from "@/components/OfflineSupport";
 
 /** The company this web address belongs to (e.g. a "nicol" address → Nicol of Skene). */
 async function companyForThisAddress() {
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <AppModeProvider value={mode}>
           <CompanyFromLink />
+          <OfflineSupport />
           {children}
         </AppModeProvider>
       </body>

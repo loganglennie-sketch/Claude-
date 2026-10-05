@@ -6,6 +6,7 @@ import { signOut, useWorker } from "@/lib/demo-auth";
 import { useAppMode } from "@/lib/app-mode";
 import { resetDemo } from "@/lib/demo-store";
 import { useWorkerSheets } from "@/lib/data";
+import { unsentCount } from "@/lib/live/worker-store";
 import { formatHM, weekTotals } from "@/lib/hours";
 import { formatWeekRange } from "@/lib/week";
 import { StatusBadge } from "./ui";
@@ -39,7 +40,11 @@ export function HistoryScreen() {
                   {s.reference && ` · ${s.reference}`}
                 </div>
               </div>
-              <StatusBadge status={s.status} />
+              {s.queued ? (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Waiting for signal</span>
+              ) : (
+                <StatusBadge status={s.status} />
+              )}
               <span className="text-xl text-muted" aria-hidden>
                 ›
               </span>
@@ -50,6 +55,7 @@ export function HistoryScreen() {
       <div className="flex items-center justify-between border-t border-line pt-4 text-sm text-muted">
         <span>Signed in as {worker?.name}</span>
         <button type="button" onClick={async () => {
+          if (live && unsentCount() > 0 && !confirm("Some of your timesheet hasn't been sent yet because there's no signal. It stays on this phone and sends next time you sign in here. Sign out anyway?")) return;
           await signOut(live);
           if (live) {
             router.replace("/login");

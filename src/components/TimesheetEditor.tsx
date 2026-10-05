@@ -57,11 +57,17 @@ type EditorProps = {
   saveStatus: SaveStatus;
 };
 
-const SAVE_LABEL: Record<SaveStatus, string> = { idle: "", saving: "Saving…", saved: "Saved", error: "Not saved yet: check your signal" };
+const SAVE_LABEL: Record<SaveStatus, string> = {
+  idle: "",
+  saving: "Saving…",
+  saved: "Saved",
+  offline: "No signal: saved on this phone, it will send when you have signal",
+  error: "Not saved yet: please try again",
+};
 
 function Editor({ initial, jobHistory, timesOnly, showOvertime, allowances, live, saveStatus }: EditorProps) {
   const [sheet, setSheet] = useState(initial);
-  const locked = sheet.status !== "draft";
+  const locked = sheet.status !== "draft" || !!sheet.queued;
   const totals = weekTotals(sheet.days, sheet.expenses);
   const suggestionsId = "job-suggestions";
 
@@ -90,7 +96,12 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, allowances, live
       <div className="mx-auto w-full max-w-xl flex-1 space-y-4 px-4 pb-44 pt-4">
         <WeekNav weekStart={sheet.weekStart} basePath="/timesheet" />
 
-        {locked ? (
+        {sheet.queued ? (
+          <div role="status" className="rounded-2xl bg-brand-soft p-4 text-brand-dark">
+            <p className="font-semibold">Signed and waiting for signal</p>
+            <p className="text-sm">This week is saved on your phone and will send to the office automatically as soon as you have signal. You don&apos;t need to do anything.</p>
+          </div>
+        ) : locked ? (
           <div className="flex items-center gap-3 rounded-2xl bg-brand-soft p-4 text-brand-dark">
             <StatusBadge status={sheet.status} />
             <p className="text-sm">
@@ -98,14 +109,21 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, allowances, live
             </p>
           </div>
         ) : (
+          <>
+          {sheet.sendError && (
+            <p role="alert" className="rounded-2xl bg-danger/10 p-4 text-sm font-medium text-danger">
+              Your signed timesheet couldn&apos;t be sent: {sheet.sendError} Please check it and submit again.
+            </p>
+          )}
           <p className="text-center text-sm text-muted">
             Fill in each day. Your changes save automatically.
             {live && SAVE_LABEL[saveStatus] && (
-              <span role="status" className={`ml-1 font-semibold ${saveStatus === "error" ? "text-danger" : ""}`}>
+              <span role="status" className={`ml-1 font-semibold ${saveStatus === "error" ? "text-danger" : saveStatus === "offline" ? "text-brand-dark" : ""}`}>
                 {SAVE_LABEL[saveStatus]}
               </span>
             )}
           </p>
+          </>
         )}
 
         <datalist id={suggestionsId}>
@@ -124,12 +142,14 @@ function Editor({ initial, jobHistory, timesOnly, showOvertime, allowances, live
             onCopyPrevious={i > 0 ? () => copyPrevious(i) : undefined}
             timesOnly={timesOnly}
             allowances={allowances}
-            onCopyToWeekdays={i === 0 && day.worked ? copyMondayToWeekdays : undefined}
+            onCopyToWeekdays={allowances && i === 0 && day.worked ? copyMondayToWeekdays : undefined}
             weekError={totals.errors.find((e) => e.date === day.date && e.error !== dayMinutes(day).error)?.error}
           />
         ))}
 
-        <WeekExtrasEditor sheet={sheet} readOnly={locked} showExpenses={!!allowances} jobSuggestionsId={suggestionsId} onChange={(patch) => update({ ...sheet, ...patch })} />
+        {allowances && (
+          <WeekExtrasEditor sheet={sheet} readOnly={locked} showExpenses jobSuggestionsId={suggestionsId} onChange={(patch) => update({ ...sheet, ...patch })} />
+        )}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">

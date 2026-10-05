@@ -130,11 +130,9 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
   const extraHeaders = [
     "Total hours worked",
     ...(showOvertime ? ["Overtime hours"] : []),
-    "Holiday days",
-    "Sick days",
-    ...(allowances ? ["Travel hours", `${allowances.awayShort} nights`, `${allowances.foodShort} (days)`, "Expenses (£)"] : []),
+    ...(allowances ? ["Holiday days", "Sick days", "Travel hours", `${allowances.awayShort} nights`, `${allowances.foodShort} (days)`, "Expenses (£)"] : []),
   ];
-  header(pay, ["Employee", "Status", ...dayHeaders, ...extraHeaders, "Other details"]);
+  header(pay, ["Employee", "Status", ...dayHeaders, ...extraHeaders, ...(allowances ? ["Other details"] : [])]);
   for (const r of employees) {
     if (!r.sheet) {
       pay.addRow([r.name, r.status]);
@@ -147,10 +145,7 @@ export async function buildWeekWorkbook(weekStart: string, rows: ExportRow[], co
       ...r.sheet.days.map((d) => (d.worked ? hours(dayMinutes(d).minutes) : d.absence === "holiday" ? "Holiday" : d.absence === "sick" ? "Sick" : null)),
       hours(totals.totalMinutes),
       ...(showOvertime ? [hours(totals.overtimeMinutes)] : []),
-      totals.holidayDays || null,
-      totals.sickDays || null,
-      ...(allowances ? [totals.travelMinutes ? hours(totals.travelMinutes) : null, totals.awayNights || null, totals.foodDays || null, totals.expensesPence ? totals.expensesPence / 100 : null] : []),
-      r.sheet.notes?.trim() || null,
+      ...(allowances ? [totals.holidayDays || null, totals.sickDays || null, totals.travelMinutes ? hours(totals.travelMinutes) : null, totals.awayNights || null, totals.foodDays || null, totals.expensesPence ? totals.expensesPence / 100 : null, r.sheet.notes?.trim() || null] : []),
     ]);
   }
   const lastPay = pay.rowCount;

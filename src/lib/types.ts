@@ -58,4 +58,8 @@ export type Timesheet = {
   signaturePath?: string;
   /** ISO timestamp. */
   approvedAt?: string;
+  /** Live, on this phone only: signed with no signal, waiting to send. */
+  queued?: boolean;
+  /** Live, on this phone only: a queued timesheet the database refused (why). */
+  sendError?: string;
 };

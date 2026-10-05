@@ -9,6 +9,8 @@
 import { useSyncExternalStore } from "react";
 import { useAppMode } from "./app-mode";
 import { signOutLive } from "@/app/actions/auth";
+import { forgetLocalCopy } from "./live/worker-store";
+import { forgetSavedPages } from "@/components/OfflineSupport";
 
 export type Worker = { id: string; name: string; payroll: boolean };
 
@@ -83,5 +85,9 @@ export function signIn(name: string, pin: string): { ok: true; worker: Worker } 
 /** Signs out. On live addresses this also ends the real session; callers then refresh the page data. */
 export async function signOut(live = false): Promise<void> {
   write(null);
-  if (live) await signOutLive().catch(() => undefined);
+  if (live) {
+    forgetLocalCopy(); // past weeks aren't left on a shared phone (unsent changes are kept and sent next time)
+    await forgetSavedPages();
+    await signOutLive().catch(() => undefined);
+  }
 }

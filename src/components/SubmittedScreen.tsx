@@ -21,9 +21,32 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
   const companyName = useCompanyName();
   const { colours, showOvertime, pdfLayout, logoPath } = useDemoCompany();
   const [busy, setBusy] = useState(false);
+  const live = data.live;
   if (!hydrated) return <div className="p-8 text-center text-muted">Loading…</div>;
 
   const sheet = store[resolveWeekParam(weekParam)];
+  if (sheet?.queued) {
+    return (
+      <div className="mx-auto w-full max-w-xl flex-1 space-y-5 px-4 pb-10 pt-8 text-center">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-soft text-4xl text-brand" aria-hidden>
+          ✓
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">Signed: waiting for signal</h1>
+          <p className="mt-1 text-muted">
+            Your timesheet for {formatWeekRange(sheet.weekStart)} is saved on this phone. It will send to the office automatically as soon as you have
+            signal, and you&apos;ll get your reference number then. You don&apos;t need to do anything else.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <ButtonLink href="/timesheet/history">View past timesheets</ButtonLink>
+          <ButtonLink href="/timesheet" variant="ghost">
+            Back to this week
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
   if (!sheet || sheet.status === "draft") {
     return (
       <div className="mx-auto w-full max-w-xl space-y-4 px-4 pt-8">
@@ -74,9 +97,7 @@ export function SubmittedScreen({ weekParam }: { weekParam?: string }) {
         </div>
       </Card>
 
-      <p className="text-sm text-muted">
-        In the live app this signed PDF is emailed to {brand.payrollEmail} automatically.
-      </p>
+      {!live && <p className="text-sm text-muted">In the live app this signed PDF is emailed to {brand.payrollEmail} automatically.</p>}
       <button type="button" onClick={previewPdf} disabled={busy} className="min-h-11 text-sm font-semibold text-brand underline underline-offset-4">
         {busy ? "Preparing…" : "See the PDF payroll receives"}
       </button>

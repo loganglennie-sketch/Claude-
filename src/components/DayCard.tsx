@@ -81,15 +81,20 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
       </div>
 
       {!readOnly && (
-        <div role="radiogroup" aria-label={`${dayName}: worked, day off, holiday or sick`} className="mt-3 grid grid-cols-4 gap-1 rounded-xl bg-page p-1">
-          {STATUS_OPTIONS.map((opt) => (
+        // Holiday and Sick only for companies using the paper-form extras (Nicol); everyone else keeps Worked / Day off.
+        <div
+          role="radiogroup"
+          aria-label={allowances ? `${dayName}: worked, day off, holiday or sick` : `${dayName}: worked or day off`}
+          className={`mt-3 grid gap-1 rounded-xl bg-page p-1 ${allowances ? "grid-cols-4" : "grid-cols-2"}`}
+        >
+          {STATUS_OPTIONS.filter((opt) => allowances || opt.key === "worked" || opt.key === "off").map((opt) => (
             <button
               key={opt.key}
               type="button"
               role="radio"
               aria-checked={status === opt.key}
               onClick={() => setStatus(opt.key)}
-              className={`min-h-12 rounded-lg px-1 text-[0.95rem] font-semibold leading-tight transition ${
+              className={`min-h-12 rounded-lg font-semibold transition ${allowances ? "px-1 text-[0.95rem] leading-tight" : "text-base"} ${
                 status === opt.key ? "bg-surface text-brand shadow-sm" : "text-muted"
               }`}
             >
