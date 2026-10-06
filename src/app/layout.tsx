@@ -10,7 +10,7 @@ import { supabasePublicConfig } from "@/lib/supabase/config";
 import "./globals.css";
 import { OfflineSupport } from "@/components/OfflineSupport";
 
-/** The company this web address belongs to (e.g. a "nicol" address → Nicol of Skene). */
+/** The company this web address belongs to (e.g. an "elevatex" address → ElevateX Marketing). */
 async function companyForThisAddress() {
   return findDemoCompany(companyIdForHost((await headers()).get("host") ?? ""));
 }

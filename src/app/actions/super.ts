@@ -68,8 +68,8 @@ export async function createCompany(_prev: ActionResult | null, form: FormData):
   const adminPassword = String(form.get("admin_password") ?? "");
 
   if (name.length < 2) return fail("Enter the company name.");
-  if (!/^[a-z0-9-]{2,40}$/.test(slug)) return fail("The short name can only use lower-case letters, numbers and dashes (e.g. nicol).");
-  if (keywords.length === 0) return fail("Enter at least one web address word (e.g. nicol).");
+  if (!/^[a-z0-9-]{2,40}$/.test(slug)) return fail("The short name can only use lower-case letters, numbers and dashes (e.g. elevatex).");
+  if (keywords.length === 0) return fail("Enter at least one web address word (e.g. elevatex).");
   if (keywords.some((k) => k.length < 4)) return fail("Web address words need at least 4 letters, so they don't match other addresses by accident.");
   const adminProblem = checkAdminFields(adminName, adminEmail, adminPassword);
   if (adminProblem) return fail(adminProblem);
@@ -141,7 +141,7 @@ export async function loadSampleData(companyId: string): Promise<ActionResult> {
   const { count } = await admin.from("users").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("role", "worker");
   if (count) return fail("This company already has workers, so no sample data was added.");
 
-  // The company's look by short name, or failing that by its web address word (e.g. "nicol-live" → Nicol).
+  // The company's look by short name, or failing that by its web address word (e.g. "elevatex-live" → ElevateX).
   const byAddress = (company.host_keywords as string[]).map(companyIdForHost).find(Boolean);
   const template = DEMO_COMPANIES[company.slug] ?? (byAddress ? DEMO_COMPANIES[byAddress] : undefined) ?? DEFAULT_COMPANY;
   const config = { ...template, entryMode: company.entry_mode };

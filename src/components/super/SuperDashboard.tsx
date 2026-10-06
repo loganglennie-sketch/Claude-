@@ -159,14 +159,14 @@ function NewCompanyForm({ onCancel }: { onCancel?: () => void }) {
       <h2 className="text-lg font-semibold">Add a company</h2>
       <form action={action} className="mt-3 space-y-3">
         <Field label="Company name">
-          <input name="name" required placeholder="e.g. Nicol of Skene" className={input} />
+          <input name="name" required placeholder="e.g. ElevateX Marketing" className={input} />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Short name" hint="Lower case, no spaces. Picks the logo and colours if they're set up (e.g. nicol).">
-            <input name="slug" required pattern="[a-z0-9\-]{2,40}" placeholder="nicol" className={input} />
+          <Field label="Short name" hint="Lower case, no spaces. Picks the logo and colours if they're set up (e.g. elevatex).">
+            <input name="slug" required pattern="[a-z0-9\-]{2,40}" placeholder="elevatex" className={input} />
           </Field>
-          <Field label="Web address word" hint="Any address containing this opens as the company (e.g. nicol).">
-            <input name="keywords" required placeholder="nicol" className={input} />
+          <Field label="Web address word" hint="Any address containing this opens as the company (e.g. elevatex).">
+            <input name="keywords" required placeholder="elevatex" className={input} />
           </Field>
         </div>
         <Field label="How workers record each job">

@@ -1,8 +1,8 @@
 /**
- * Nicol of Skene's paper timesheet (form QA-F-27, procedure QA-P-10), filled
- * in from the app. Same landscape layout as the paper copy so it can be
- * printed, calculated and scanned exactly as before:
- *   one line per contract number, start/finish for each day Monday–Sunday,
+ * A traditional paper-style weekly timesheet, filled in from the app. Landscape
+ * A4 laid out like the sheets many trades firms already use, so it can be
+ * printed, checked and scanned in the usual way:
+ *   one line per job number, start/finish for each day Monday–Sunday,
  *   travel time, work away allowance nights and expenses on the same line,
  *   totals per day, Office Use Only, and employee / chargehand / line manager sign-off.
  * Holiday and sick days get their own line. Anything that doesn't fit on the
@@ -13,7 +13,8 @@ import { dayMinutes, dayTimeline, entryMinutes, expenseError, formatClock, parse
 import type { JobEntry, Timesheet } from "./types";
 import { addDays, parseISODate } from "./week";
 
-export type NicolFormInput = {
+export type PaperFormInput = {
+  companyName: string;
   workerName: string;
   sheet: Timesheet;
   /** PNG of the company logo (fetched by the caller), drawn top right. */
@@ -100,10 +101,10 @@ const pounds = (pence: number) => (pence / 100).toFixed(2);
 const londonDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/London" }).format(new Date(iso));
 const londonStamp = (iso: string) => new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" }).format(new Date(iso));
 
-export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFormInput): Promise<Uint8Array> {
+export async function buildPaperFormPdf({ companyName, workerName, sheet, logoPng }: PaperFormInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Nicol of Skene Timesheet – ${workerName} – w/e ${ddmmyyyy(addDays(sheet.weekStart, 6))}`);
-  pdf.setAuthor("Nicol of Skene");
+  pdf.setTitle(`${companyName} Timesheet – ${workerName} – w/e ${ddmmyyyy(addDays(sheet.weekStart, 6))}`);
+  pdf.setAuthor(companyName);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   let logo = null;
@@ -178,8 +179,7 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
     const mid = (y1: number, y2: number, size: number) => (y1 + y2) / 2 + size * 0.35;
 
     // ── Title, name and week ending ──
-    t("Nicol of Skene Timesheet", L, top.title, { font: bold, size: 13 });
-    t("[Procedure QA-P-10]", 192, top.title - 2, { font: bold, size: 6.5 });
+    t(`${companyName} Timesheet`, L, top.title, { font: bold, size: 13, width: 520 });
     if (pages > 1) t(`Page ${p + 1} of ${pages}`, 300, top.title - 2, { size: 7, color: muted });
     if (logo) {
       const h = 46;
@@ -207,7 +207,7 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
     box(col.job[0], g1, col.job[1], g2, grey);
     t("Date:", col.job[1] - 4, mid(g1, g2, 8), { font: bold, align: "right" });
     box(col.job[0], g2, col.job[1], g3, grey);
-    t("CONTRACT NUMBER", (col.job[0] + col.job[1]) / 2, mid(g2, g3, 6.5), { font: bold, size: 6.5, align: "center" });
+    t("JOB NUMBER", (col.job[0] + col.job[1]) / 2, mid(g2, g3, 6.5), { font: bold, size: 6.5, align: "center" });
     DAYS.forEach((name, d) => {
       const [x1, x2] = col.day(d);
       const xm = (x1 + x2) / 2;
@@ -263,7 +263,7 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
           t(`${formatClock(cell.span.end)}${cell.span.overnight ? "*" : ""}`, (xm + x2) / 2, y1 + 10.5, { font: bold, size: 8.5, color: ink, align: "center" });
           if (cell.entry.breakMins > 0) t(`${cell.entry.breakMins}m break`, (xm + x2) / 2, y1 + 17, { size: 5, color: ink, align: "center" });
         } else {
-          // Hours typed without clock times (not used by Nicol, but never lose them).
+          // Hours typed without clock times (for companies that allow it; never lose them).
           t(`${hours(entryMinutes(cell.entry).minutes)} h`, (x1 + x2) / 2, mid(y1, y2, 8.5), { font: bold, size: 8.5, color: ink, align: "center" });
         }
       }
@@ -380,7 +380,6 @@ export async function buildNicolFormPdf({ workerName, sheet, logoPng }: NicolFor
     }
 
     // ── Footer ──
-    t("QA-F-27 Rev 6 - OCT 17", L, H - 9, { size: 6 });
     const appLine = [
       "Completed in the timesheet app",
       sheet.reference && `ref ${sheet.reference}`,

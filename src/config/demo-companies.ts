@@ -1,9 +1,9 @@
 /**
  * DEMO ONLY: test companies that can be shown from the same app.
- * Open the app with ?demo=<id> (e.g. ?demo=nicol) to switch a device to one;
+ * Open the app with ?demo=<id> (e.g. ?demo=elevatex) to switch a device to one;
  * ?demo= (empty) goes back to the normal setup in brand.ts.
  * A company can also be picked automatically by web address: any address
- * containing its hostKeyword (e.g. nicolofskene-timesheets.vercel.app) opens as it.
+ * containing its hostKeyword (e.g. elevatex-timesheets.vercel.app) opens as it.
  * The real app for a company uses brand.ts instead of this file.
  */
 import { brand, type EntryMode } from "./brand";
@@ -36,8 +36,8 @@ export type DemoCompany = {
    * for nights away and for food, and expenses. Leave out to hide them.
    */
   allowances?: { away: string; awayShort: string; food: string; foodShort: string };
-  /** "nicol-qa-f-27": the PDF copies Nicol of Skene's paper timesheet (see lib/pdf-nicol-form.ts). */
-  pdfLayout?: "standard" | "nicol-qa-f-27";
+  /** "paper-form": the PDF looks like a traditional paper timesheet (see lib/pdf-paper-form.ts). */
+  pdfLayout?: "standard" | "paper-form";
 };
 
 export const DEFAULT_COMPANY: DemoCompany = {
@@ -65,28 +65,28 @@ export const DEFAULT_COMPANY: DemoCompany = {
 };
 
 export const DEMO_COMPANIES: Record<string, DemoCompany> = {
-  nicol: {
-    id: "nicol",
-    hostKeyword: "nicol",
-    companyName: "Nicol of Skene",
-    logoPath: "/demo/nicol-logo.png",
-    iconPath: "/demo/nicol-icon.png",
+  elevatex: {
+    id: "elevatex",
+    hostKeyword: "elevatex",
+    companyName: "ElevateX Marketing",
+    logoPath: "/demo/elevatex-logo.png",
+    iconPath: "/demo/elevatex-icon.png",
     logoIncludesName: true,
-    // Pay depends on when work was done (day, evening, night, weekend), so every job needs clock times.
+    // The full version: start and finish times for every job, as many trades firms need.
     entryMode: "times",
-    // Their job costing program applies all pay rules, so the app shows hours only.
+    // Hours only; the company's own payroll applies pay rules.
     showOvertime: false,
-    iconSet: "/icons/nicol",
+    iconSet: "/icons/elevatex",
     colours: {
-      primary: "#224596", // blue from the logo
-      primaryDark: "#1A3573",
-      accent: "#E73B2D", // thistle red from the logo
-      primarySoft: "#E4EAF6",
-      background: "#F6F7FB",
+      primary: "#0B5ED7", // blue from the logo (darkened a little so white text stays readable)
+      primaryDark: "#0848A8",
+      accent: "#05070D", // logo black
+      primarySoft: "#E6F0FD",
+      background: "#F5F7FB",
       surface: "#FFFFFF",
-      text: "#1A2033",
-      muted: "#5F6678",
-      border: "#DDE2EE",
+      text: "#0F1420",
+      muted: "#5B6475",
+      border: "#DCE3EE",
       danger: "#B3261E",
     },
     team: [
@@ -104,14 +104,14 @@ export const DEMO_COMPANIES: Record<string, DemoCompany> = {
       food: "Food allowance",
       foodShort: "Food",
     },
-    // PDF laid out like their paper timesheet, form QA-F-27.
-    pdfLayout: "nicol-qa-f-27",
+    // PDF laid out like a traditional paper timesheet (see lib/pdf-paper-form.ts).
+    pdfLayout: "paper-form",
   },
 };
 
 export const findDemoCompany = (id: string | null | undefined): DemoCompany => (id && DEMO_COMPANIES[id]) || DEFAULT_COMPANY;
 
-/** The test company a web address belongs to, if any (e.g. "nicolofskene-timesheets.vercel.app" → "nicol"). */
+/** The test company a web address belongs to, if any (e.g. "elevatex-timesheets.vercel.app" → "elevatex"). */
 export function companyIdForHost(hostname: string): string | null {
   const host = hostname.toLowerCase();
   return Object.values(DEMO_COMPANIES).find((c) => c.hostKeyword && host.includes(c.hostKeyword))?.id ?? null;

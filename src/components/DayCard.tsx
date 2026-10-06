@@ -81,7 +81,7 @@ export function DayCard({ day, readOnly, jobSuggestionsId, onChange, onCopyPrevi
       </div>
 
       {!readOnly && (
-        // Holiday and Sick only for companies using the paper-form extras (Nicol); everyone else keeps Worked / Day off.
+        // Holiday and Sick only for companies using the paper-form extras (the full version); everyone else keeps Worked / Day off.
         <div
           role="radiogroup"
           aria-label={allowances ? `${dayName}: worked, day off, holiday or sick` : `${dayName}: worked or day off`}

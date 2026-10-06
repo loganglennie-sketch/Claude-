@@ -14,7 +14,7 @@ The demo uses the generic name "Your Company". To show a business its own name, 
 
 (`%20` means a space.) The name is remembered on that device. Open `/?company=` to go back to the default.
 
-**Test companies:** `/?demo=nicol` switches a device to the Nicol of Skene test company (their logo and colours, 5 test workers, their own job numbers). `/?demo=` switches back. Any web address containing `nicol` (e.g. `nicolofskene-timesheets.vercel.app`, added in Vercel → Settings → Domains) opens as Nicol of Skene automatically, with no `?demo=` needed. Test companies are set up in [`src/config/demo-companies.ts`](src/config/demo-companies.ts).
+**Full version demo:** `/?demo=elevatex` switches a device to the ElevateX Marketing showcase (logo, colours, 5 sample workers, job numbers, holiday/sick, nights away, food, travel, expenses and a paper-style PDF). `/?demo=` switches back. Any web address containing `elevatex` (added in Vercel → Settings → Domains) opens as it automatically. Demo companies are set up in [`src/config/demo-companies.ts`](src/config/demo-companies.ts).
 
 ## Build stages
 

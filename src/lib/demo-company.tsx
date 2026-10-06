@@ -2,9 +2,9 @@
 
 /**
  * DEMO ONLY: lets one demo app be shown to several businesses.
- *  - /?demo=nicol switches this device to a test company from demo-companies.ts
+ *  - /?demo=elevatex switches this device to a test company from demo-companies.ts
  *    (its logo, colours, made-up team and job numbers). /?demo= goes back.
- *  - An address containing a company's hostKeyword (e.g. nicolofskene-…vercel.app)
+ *  - An address containing a company's hostKeyword (e.g. elevatex-…vercel.app)
  *    opens as that company without any ?demo= part.
  *  - /?company=Smith%20Joinery just shows a different company name.
  *    /?company= (empty) goes back to the normal name.

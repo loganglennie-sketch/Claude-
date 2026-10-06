@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════
---  Timesheets – Nicol of Skene's paper form fields (run once in Supabase →
+--  Timesheets – paper-form fields for the full version (run once in Supabase →
 --  SQL Editor, after the two earlier scripts)
 --
 --  • Travel time is stored with each job.

@@ -15,8 +15,8 @@ type PdfInput = {
   colours?: { primary: string; primarySoft: string };
   /** Include basic/overtime split (off for companies whose own program applies pay rules). */
   showOvertime?: boolean;
-  /** "nicol-qa-f-27": fill in Nicol of Skene's own paper form instead. */
-  layout?: "standard" | "nicol-qa-f-27";
+  /** "paper-form": a traditional paper-style timesheet instead. */
+  layout?: "standard" | "paper-form";
   /** Company logo (PNG) for layouts that show it. */
   logoPath?: string;
 };
@@ -29,9 +29,14 @@ function hexToRgb(hex: string) {
 }
 
 export async function buildTimesheetPdf(input: PdfInput): Promise<Uint8Array> {
-  if (input.layout === "nicol-qa-f-27") {
-    const { buildNicolFormPdf } = await import("./pdf-nicol-form");
-    return buildNicolFormPdf({ workerName: input.workerName, sheet: input.sheet, logoPng: input.logoPath ? await fetchBytes(input.logoPath) : null });
+  if (input.layout === "paper-form") {
+    const { buildPaperFormPdf } = await import("./pdf-paper-form");
+    return buildPaperFormPdf({
+      companyName: input.companyName,
+      workerName: input.workerName,
+      sheet: input.sheet,
+      logoPng: input.logoPath ? await fetchBytes(input.logoPath) : null,
+    });
   }
   return buildStandardPdf(input);
 }
