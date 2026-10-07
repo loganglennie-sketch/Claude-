@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* Colour values come from src/config/settings.ts (set on <html> in layout.tsx). */
+@theme inline {
+  --color-brand: var(--c-primary);
+  --color-brand-dark: var(--c-primary-dark);
+  --color-brand-soft: var(--c-primary-soft);
+  --color-page: var(--c-background);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-border);
+  --color-danger: var(--c-danger);
+  --color-warning: var(--c-warning);
+  --color-success: var(--c-success);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--c-background);
+  color: var(--c-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep form controls at 16px+ so iPhones don't zoom in when tapping them. */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

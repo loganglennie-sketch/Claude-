@@ -2,6 +2,8 @@
 
 A mobile-first weekly timesheet app for small trades businesses. Workers fill in and sign their week on their phone; the payroll team approves and exports from a desktop dashboard.
 
+> **Separate product:** [`offshore/`](offshore/README.md) holds *Offshore Contractor Timesheets* (trips approved by the client's supervisor by secure link). It's its own app with its own settings.
+
 **Rebranding:** everything company-specific (name, logo, colours, payroll email, overtime threshold, declaration wording) lives in [`src/config/brand.ts`](src/config/brand.ts). Replace `public/logo.svg` with your own logo.
 
 ## Showing the demo to a business
