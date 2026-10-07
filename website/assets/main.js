@@ -37,3 +37,23 @@ if (form) {
     }
   });
 }
+
+// Fade sections in as they scroll into view
+if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const items = document.querySelectorAll('.sec-head, .svc, .step, .checks li, .faq details, .cta-box, .who, .sheet, .contact-card');
+  if (items.length) {
+    document.documentElement.classList.add('reveal-on');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    items.forEach((n) => {
+      // Stagger cards that sit side by side
+      const i = [...n.parentElement.children].indexOf(n);
+      n.style.transitionDelay = `${Math.min(i, 4) * 80}ms`;
+      n.classList.add('rv');
+      io.observe(n);
+    });
+  }
+}

@@ -214,3 +214,32 @@ a.svc:hover{border-color:var(--blue-hi);transform:translateY(-2px)}
 .contact{align-items:start}
 #enquiry{scroll-margin-top:90px}
 @media (max-width:640px){.field-row{grid-template-columns:1fr}}
+
+/* home hero demo: enquiry in, fast reply, lead sent on */
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.demo-chat{display:flex;flex-direction:column;gap:10px;min-height:330px;padding:16px 0 14px;border-bottom:1px solid var(--line)}
+.demo-top{display:grid;gap:2px}
+.demo-top b{font-weight:600}
+.demo-top small{color:var(--muted);font-size:13px}
+.bubble{max-width:88%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.45}
+.bubble.in{background:var(--navy-700);border:1px solid var(--line);border-bottom-left-radius:4px;align-self:flex-start}
+.bubble.out{background:var(--blue);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.demo-timer{align-self:flex-end;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.demo-timer .tick{color:var(--white)}
+.dots{display:inline-flex;gap:3px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--blue-hi);animation:blink 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}
+.dots i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+.demo-stamp{align-self:flex-end;font-family:var(--mono);font-size:12px;color:var(--ok)}
+.demo-owner{display:flex;align-items:center;gap:10px;margin-top:auto;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:13px;color:var(--muted)}
+.demo-owner .ic{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--navy-700);color:var(--ok);font-size:12px;flex:none}
+.rise{animation:rise .45s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.demo-recent .lead.fresh{animation:rise .5s ease-out both}
+.demo-recent .lead.fresh .t{animation:flash 1.6s ease-out}
+@keyframes flash{0%{color:var(--white)}100%{color:var(--ok)}}
+
+/* scroll reveal (only when JS is running and motion is allowed) */
+.reveal-on .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease-out,transform .6s ease-out}
+.reveal-on .rv.in{opacity:1;transform:none}
