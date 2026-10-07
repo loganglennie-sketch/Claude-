@@ -28,7 +28,6 @@ The header, nav and footer are repeated in every page. When adding a page or cha
 Footer must keep: trading name, Logan Ecom Ltd, registered in Scotland, company no. SC884354, registered office address.
 
 ## To do
-- Put the real Web3Forms access key into contact.html (replace `YOUR_WEB3FORMS_ACCESS_KEY`).
 - Home page: make it feel alive, e.g. an animated enquiry for a trade business arriving and being replied to within X seconds.
 - Timesheets page: replace the example timesheet with a much more professional-looking one.
 - Add a favicon / logo image.
