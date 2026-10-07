@@ -11,7 +11,8 @@ Static multi-page website for ElevateX Marketing (trading name of Logan Ecom Ltd
 - `timesheets.html` – digital timesheet app (demo: https://demo-timesheets.vercel.app)
 - `contact.html` – contact details
 - `assets/styles.css` – all styles (colour + font tokens at the top in `:root`)
-- `assets/main.js` – mobile menu toggle + enquiry form submission
+- `assets/main.js` – mobile menu toggle, enquiry form submission, scroll fade-in
+- `assets/hero-demo.js` – animated enquiry/reply demo in the home page hero (example data only)
 
 ## Enquiry form
 `contact.html` has the enquiry form; every "Book a free chat" button links to `contact.html#enquiry`. It posts to Web3Forms, which emails each enquiry to the business inbox. The inbox address is deliberately NOT shown anywhere on the site (replies are sent personally from it). The `access_key` hidden field is the only link to it and is safe to be public.
@@ -28,7 +29,6 @@ The header, nav and footer are repeated in every page. When adding a page or cha
 Footer must keep: trading name, Logan Ecom Ltd, registered in Scotland, company no. SC884354, registered office address.
 
 ## To do
-- Home page: make it feel alive, e.g. an animated enquiry for a trade business arriving and being replied to within X seconds.
 - Timesheets page: replace the example timesheet with a much more professional-looking one.
 - Add a favicon / logo image.
 - Business may be renamed (another UK business uses "ElevateX") – brand name appears in titles, header and footer of every page.
