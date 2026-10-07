@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Separate app with its own settings.
     "offshore/**",
+    "website/**",
   ]),
 ]);
 
