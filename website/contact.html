@@ -24,7 +24,7 @@
       <a href="social-content.html">Social Content</a>
       <a href="websites.html">Websites</a>
       <a href="timesheets.html">Timesheets</a>
-      <a class="btn" href="contact.html">Get in touch</a>
+      <a class="btn" href="contact.html" aria-current="page">Get in touch</a>
     </nav>
   </div>
 </header>
@@ -32,15 +32,45 @@
 <div class="page-hero"><div class="wrap">
   <div class="eyebrow">Contact</div>
   <h1>Let's <em>talk</em></h1>
-  <p class="lede">Tell us about your business and what a good month looks like. We'll come back with a straight answer on whether ads, timesheets or both would help.</p>
-  
+  <p class="lede">Tell us about your business and what a good month looks like. We'll come back with a straight answer on whether we can help.</p>
 </div></div><section class="band"><div class="wrap"><div class="contact">
-  <div class="prose"><h2>Book a free chat</h2><p>The quickest way to reach us is a message on Instagram. We usually reply the same day.</p></div>
+  <div class="prose">
+    <h2 id="enquiry">Book a free chat</h2>
+    <p>Fill in the form and we'll reply by email, usually the same day.</p>
+    <!-- Messages go to the inbox registered with Web3Forms. The address is not in this page. -->
+    <form class="enquiry" action="https://api.web3forms.com/submit" method="POST" data-enquiry>
+      <input type="hidden" name="access_key" value="08bcc591-a670-4503-98a7-90c5dcb33aca">
+      <input type="hidden" name="subject" value="New enquiry from the ElevateX website">
+      <input type="hidden" name="from_name" value="ElevateX website">
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="field-row">
+        <label class="field"><span>Name</span><input name="name" autocomplete="name" required></label>
+        <label class="field"><span>Business name</span><input name="business" autocomplete="organization"></label>
+      </div>
+      <div class="field-row">
+        <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required></label>
+        <label class="field"><span>Phone <i>(optional)</i></span><input type="tel" name="phone" autocomplete="tel"></label>
+      </div>
+      <label class="field"><span>What are you interested in?</span>
+        <select name="interested_in">
+          <option>Not sure yet</option>
+          <option>Meta &amp; Instagram ads</option>
+          <option>Lead follow-up</option>
+          <option>Social content</option>
+          <option>Website or landing page</option>
+          <option>Digital timesheets</option>
+        </select>
+      </label>
+      <label class="field"><span>Tell us a bit about your business</span><textarea name="message" rows="5" required></textarea></label>
+      <p class="form-note">We'll only use your details to reply to your enquiry.</p>
+      <button class="btn" type="submit">Send enquiry</button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
   <div class="contact-card">
-    <div class="row"><span class="k">Instagram</span><a class="v" href="https://www.instagram.com/elevatexmarketing.1/" target="_blank" rel="noopener">@elevatexmarketing.1</a></div>
-    <!-- TODO: add business email and phone number -->
+    <div class="row"><span class="k">Prefer Instagram?</span><a class="v" href="https://www.instagram.com/elevatexmarketing.1/" target="_blank" rel="noopener">@elevatexmarketing.1</a></div>
+    <div class="row"><span class="k">Reply time</span><span class="v">Usually the same day</span></div>
     <div class="row"><span class="k">Based in</span><span class="v">Aberdeen, working with businesses across the UK</span></div>
-    <a class="btn" href="https://www.instagram.com/elevatexmarketing.1/" target="_blank" rel="noopener">Message us on Instagram</a>
   </div>
 </div></div></section>
 

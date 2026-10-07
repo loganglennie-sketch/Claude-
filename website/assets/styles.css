@@ -194,3 +194,23 @@ a.svc:hover{border-color:var(--blue-hi);transform:translateY(-2px)}
 
 @media (max-width:900px){.split,.products{grid-template-columns:1fr}}
 @media (max-width:640px){.page-hero{padding-block:48px 40px}.cta-box{padding:24px}}
+
+/* enquiry form */
+.enquiry{display:grid;gap:16px;margin-top:24px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:grid;gap:6px;min-width:0}
+.field>span{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.field i{font-style:normal;text-transform:none;letter-spacing:0}
+.field input,.field select,.field textarea{width:100%;font:inherit;font-size:16px;color:var(--white);background:var(--navy-900);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.field textarea{resize:vertical;min-height:120px}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue-hi)}
+.enquiry .btn{justify-self:start;cursor:pointer;font-family:inherit}
+.enquiry .btn[disabled]{opacity:.6;cursor:wait}
+.form-note{margin:0;font-size:14px}
+.form-status{margin:0;font-weight:600}
+.form-status.ok{color:var(--ok)}
+.form-status.err{color:var(--white)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.contact{align-items:start}
+#enquiry{scroll-margin-top:90px}
+@media (max-width:640px){.field-row{grid-template-columns:1fr}}
