@@ -37,22 +37,51 @@
 </div></div><section class="band"><div class="wrap"><div class="ts-grid"><div class="prose"><h2>How it works</h2><ul class="checks"><li><span class="ic" aria-hidden="true">✓</span><div><b>Fill in and sign on the phone</b><span>No app store download and no lost or smudged sheets.</span></div></li>
 <li><span class="ic" aria-hidden="true">✓</span><div><b>Supervisor sign-off</b><span>Hours approved on site before they go to the employer.</span></div></li>
 <li><span class="ic" aria-hidden="true">✓</span><div><b>Straight to payroll</b><span>Submitted sheets go to your payroll inbox, and payroll can pull the whole week at once.</span></div></li>
-<li><span class="ic" aria-hidden="true">✓</span><div><b>You control access</b><span>Add and remove workers yourself, so you always know who's on the system.</span></div></li></ul></div><div class="sheet" aria-label="Example timesheet">
-  <div class="sheet-top"><b>Weekly timesheet</b><small>W/E SUN 11 OCT</small></div>
-  <div class="tbl-wrap"><table>
-    <thead><tr><th>Day</th><th>Start</th><th>Finish</th><th>Break</th><th>Hours</th></tr></thead>
-    <tbody>
-      <tr><td>Mon</td><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
-      <tr><td>Tue</td><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
-      <tr><td>Wed</td><td>07:00</td><td>16:00</td><td>0:30</td><td>8.5</td></tr>
-      <tr><td>Thu</td><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
-      <tr><td>Fri</td><td>07:00</td><td>13:00</td><td>0:00</td><td>6.0</td></tr>
-      <tr class="total"><td>Total</td><td></td><td></td><td></td><td>44.5</td></tr>
-    </tbody>
-  </table></div>
-  <div class="sig"><i>J. Smith</i><span class="ok-pill">Approved · sent to payroll</span></div>
-  <div class="example" style="color:#55607e">Example data</div>
-</div></div></div></section><section><div class="wrap"><div class="sec-head"><div class="eyebrow">Versions</div><h2>Set up for how your business works</h2><p class="lede">Every company is different, so we tailor the app to your sites, crews and approval steps.</p></div><div class="products">
+<li><span class="ic" aria-hidden="true">✓</span><div><b>You control access</b><span>Add and remove workers yourself, so you always know who's on the system.</span></div></li></ul></div><div class="sheet ts-doc" aria-label="Example digital timesheet" data-sheet>
+  <div class="doc-head">
+    <div class="doc-co"><span class="doc-logo" aria-hidden="true">YC</span><div><b>Your Company Ltd</b><small>Weekly timesheet · TS-2041</small></div></div>
+    <span class="doc-status">Approved</span>
+  </div>
+  <dl class="doc-meta">
+    <div><dt>Worker</dt><dd>J. Smith · #1042</dd></div>
+    <div><dt>Trade</dt><dd>Joiner</dd></div>
+    <div><dt>Site</dt><dd>Housing development, AB32</dd></div>
+    <div><dt>Week ending</dt><dd>Sun 11 Oct 2026</dd></div>
+  </dl>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th scope="col">Day</th><th scope="col">Start</th><th scope="col">Finish</th><th scope="col">Break</th><th scope="col">Hours</th></tr></thead>
+      <tbody>
+          <tr><th scope="row">Mon <span>05 Oct</span></th><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
+          <tr><th scope="row">Tue <span>06 Oct</span></th><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
+          <tr><th scope="row">Wed <span>07 Oct</span></th><td>07:00</td><td>16:00</td><td>0:30</td><td>8.5</td></tr>
+          <tr><th scope="row">Thu <span>08 Oct</span></th><td>07:00</td><td>17:30</td><td>0:30</td><td>10.0</td></tr>
+          <tr><th scope="row">Fri <span>09 Oct</span></th><td>07:00</td><td>13:00</td><td>0:00</td><td>6.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="doc-totals">
+    <div><span>Normal</span><b>38.0</b></div>
+    <div><span>Overtime</span><b>6.5</b></div>
+    <div class="grand"><span>Total hours</span><b>44.5</b></div>
+  </div>
+  <div class="doc-signs">
+    <div class="sign">
+      <svg viewBox="0 0 160 44" aria-hidden="true"><path d="M6 32c8-14 14-22 18-20s-6 22-2 22 10-16 14-16-2 14 2 14 8-10 12-10 0 10 4 10 10-18 16-18-4 18 0 18 14-6 20-10 12-4 18-2 14 2 30-4"/></svg>
+      <span>Worker · signed Fri 9 Oct, 17:42</span>
+    </div>
+    <div class="sign">
+      <svg viewBox="0 0 160 44" aria-hidden="true"><path d="M8 30c6-2 10-18 16-18s-4 20 2 20 8-14 14-14 2 12 8 12 6-8 12-8 2 8 8 8 12-14 18-14-6 14 0 14 22-4 38-8 18-2 26 0"/></svg>
+      <span>Supervisor · approved Sat 10 Oct, 08:15</span>
+    </div>
+  </div>
+  <ol class="doc-trail">
+    <li><span class="dot" aria-hidden="true">✓</span>Submitted</li>
+    <li><span class="dot" aria-hidden="true">✓</span>Approved on site</li>
+    <li><span class="dot" aria-hidden="true">✓</span>Sent to payroll</li>
+  </ol>
+  <div class="example">Example data</div>
+</div></div></div></div></section><section><div class="wrap"><div class="sec-head"><div class="eyebrow">Versions</div><h2>Set up for how your business works</h2><p class="lede">Every company is different, so we tailor the app to your sites, crews and approval steps.</p></div><div class="products">
   <div class="svc"><span class="tag">Contractors &amp; trades</span><h3>Site timesheets</h3><p>For construction, civil engineering and trades businesses still using paper sheets each week.</p></div>
   <div class="svc"><span class="tag">Offshore</span><h3>Contractor sign-off</h3><p>For contractors whose hours must be signed off by the operator's supervisor before they reach the employer.</p></div>
   <div class="svc"><span class="tag">Marine</span><h3>Vessel crew trip sheets</h3><p>Who's on board each trip, recorded on the vessel and approved onshore, with crew changes handled at every mob and demob.</p></div>

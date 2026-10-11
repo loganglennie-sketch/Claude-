@@ -29,6 +29,5 @@ The header, nav and footer are repeated in every page. When adding a page or cha
 Footer must keep: trading name, Logan Ecom Ltd, registered in Scotland, company no. SC884354, registered office address.
 
 ## To do
-- Timesheets page: replace the example timesheet with a much more professional-looking one.
 - Add a favicon / logo image.
 - Business may be renamed (another UK business uses "ElevateX") – brand name appears in titles, header and footer of every page.
